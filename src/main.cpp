@@ -96,12 +96,14 @@ public:
 
     void addFailure()
     {
+        //std::cout << "Failure." << std::endl;
         this->detectSum += (std::max)(0.0, this->timer.stop() - this->onepfps);
     }
     
     void addSuccess(int frameId)
     {
-        this->detectSum += this->timer.stop();
+        //std::cout << "Success." << std::endl;
+		this->detectSum += this->timer.stop();
         int diff = frameId - current - 1;
         //frameDiffs.push_back(diff*onepfps + detectSum);
         frameDiffs.push_back(diff);
@@ -233,16 +235,20 @@ void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen:
 
 int mainCV(int argc, char* argv[])
 {
-	struct arg_str *arg_alg = arg_str0("aA", "alg", "algorithm", "Choose the algorithm [sog (default), chroma]");
-    struct arg_file  *arg_marker    = arg_file1("mM", NULL, "marker", "the file containing the marker information");
-    struct arg_file  *arg_ivideo = arg_file0("iI", NULL, "input_video", "the input video or image used for processing");
-    struct arg_file  *arg_calib = arg_file0("cC", NULL, "calib", "calibration data for opencv");
-	struct arg_lit  *arg_maxprec = arg_lit0("xX", "max", "if maximum precision should be the goal");
-	struct arg_lit  *arg_pos = arg_lit0("pP", "positions", "if set, for each frame the position is output instead of success rate");
-    struct arg_lit  *arg_help    = arg_lit0("h","help", "print this help and exit");
-    struct arg_str *arg_path = arg_str0("dD", "dir", "output_path", "the relative directory to store from the current location without the / symbol");
-    struct arg_end  *end     = arg_end(20);
-    void* argtable[] = {arg_marker, arg_ivideo, arg_calib, arg_help, arg_path, arg_alg, arg_maxprec, arg_pos, end};
+	struct arg_str *arg_alg         = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), chroma]");
+    struct arg_file  *arg_marker    = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
+    struct arg_file  *arg_ivideo    = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing");
+    struct arg_file  *arg_calib     = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
+	struct arg_lit  *arg_maxprec    = arg_lit0("xX",    "max",          "if maximum precision should be the goal");
+	struct arg_lit  *arg_pos        = arg_lit0("pP",    "positions",    "if set, for each frame the position is output instead of success rate");
+    struct arg_lit  *arg_help       = arg_lit0("h",     "help",         "print this help and exit");
+    struct arg_int *arg_cam         = arg_int0("kK",    "camera",       NULL, "the index of the webcam to use, starting from 0");
+    struct arg_str *arg_path        = arg_str0("dD",    "dir",          "output_path", "the relative directory to store from the current location without the / symbol");
+    struct arg_lit  *arg_recalib    = arg_lit0("rR",    "recalib",      "perform a re-calibration for the camera. This will halt the program after a while.");
+    struct arg_lit  *arg_outvideo   = arg_lit0(NULL,    "ov,outvideo",  "Record the whole process into ./output.avi");
+    struct arg_lit  *arg_outframes  = arg_lit0(NULL,    "of,outframe",  "Record individual frames.");
+    struct arg_end  *end            = arg_end(20);
+    void* argtable[] = {arg_marker, arg_ivideo, arg_calib, arg_help, arg_path, arg_alg, arg_maxprec, arg_pos, arg_cam, arg_recalib, arg_outvideo, arg_outframes, end};
     const char* progname = "detect";
 
     /* verify the argtable[] entries were allocated sucessfully */
@@ -312,6 +318,11 @@ int mainCV(int argc, char* argv[])
     std::string filename_short = "webcam0";
     CVImageInitStruct sCVIni;
     sCVIni.cameraIndex = 1;
+
+    if(arg_cam->count > 0) {
+        sCVIni.cameraIndex = arg_cam->ival[0];
+    }
+
     sCVIni.file = (arg_ivideo->count > 0);
     if(sCVIni.file)
     {
@@ -337,9 +348,9 @@ int mainCV(int argc, char* argv[])
     float fps = factory->getFrameCount();
     if(fps > 200 || fps == 0) fps = 30;
 
-	const bool writeVideo = true;
-	const bool writeFrames = false;
-	const bool calibrate = false;
+	const bool writeVideo = (arg_outvideo->count > 0) ;
+	const bool writeFrames = (arg_outframes->count > 0) ;
+	const bool calibrate = (arg_recalib->count > 0) ;
     if(writeVideo)
     {
 		char videobuf[1024];
@@ -524,11 +535,12 @@ int mainCV(int argc, char* argv[])
             slogger.addSuccess(frameCounter);
 
 
-			if (calibrate && !calibCV->isCalibrated() && detector->model.getCorrespondences().size() > 50/* && (frameCounter % 5) == 0*/)
+			if (calibrate && !calibCV->isCalibrated() && detector->model.getCorrespondences().size() > 50 /* && (frameCounter % 5) == 0*/)
 			{
 				calibCV->addImage(detector->model.getCorrespondences());
 				if (calibCV->isCalibrated()) {
-					char calibbuf[1024];
+				    std::cout << "Calibrating finished (within main loop)." << std::endl;
+		        	char calibbuf[1024];
 					sprintf(calibbuf, "%s/camera_calib.txt", outpath.c_str());
 					calibCV->saveCalibration(calibbuf);
 				}
@@ -655,7 +667,7 @@ int mainCV(int argc, char* argv[])
 
 	if (calibrate && !calibCV->isCalibrated())
 	{
-		std::cout << "Calibrating hurray" << std::endl;
+		std::cout << "Calibrating not finished within main loop. Calibrating now." << std::endl;
 		calibCV->calibrate(); 
 		char calibbuf[1024];
 		sprintf(calibbuf, "%s/camera_calib.txt", outpath.c_str());

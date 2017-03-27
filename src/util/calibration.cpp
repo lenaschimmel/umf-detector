@@ -29,7 +29,9 @@ void Calibration::addImage(CorrespondenceSet &myset)
     this->images.push_back(myset);
 
 	if (this->images.size() > 100) {
+		std::cout << "Collected enough frames. Start calibration. This may take several minutes..." << std::endl;
 		this->calibrate();
+		std::cout << "Finished calibration." << std::endl;
 	}
 }
 
