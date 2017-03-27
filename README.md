@@ -1,3 +1,5 @@
+_Forked from [this repo](https://github.com/szist/umf-detector) to add some features and general experimentation._
+
 UMF detector library
 =======================
 
@@ -66,4 +68,4 @@ Related Projects
 
 * [UMF generator server](https://github.com/szist/umf-generator-server)
 * [UMF generator client](https://github.com/szist/umf-generator-client)
-* [UMF unity plugin] (https://github.com/szist/umf-unity)
+* [UMF unity plugin](https://github.com/szist/umf-unity)
