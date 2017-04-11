@@ -283,6 +283,8 @@ int mainCV(int argc, char* argv[])
         return -1;
     }
 
+    cout << "Using OpenCV v" << CV_VERSION << "\n" << endl;
+
     std::string outpath(".");
     if(arg_path->count > 0)
     {
