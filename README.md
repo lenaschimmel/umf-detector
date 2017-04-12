@@ -17,6 +17,10 @@ Planned enhancements:
     * Make better use of vector and matrix classes in OpenCV and Eigen3
     * General update to C++11
 
+<p align="center">
+  <img src="https://github.com/lenaschimmel/umf-detector/blob/master/umf-detector-screenshots.jpg?raw=true" alt="Screenshots of the various graphical debug outputs"/>
+</p>
+
 ## Referencing
 In case you end up using our source code in research, please add a reference to one of our relevant publications:
 
