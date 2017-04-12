@@ -5,10 +5,10 @@ _Forked from [this repo](https://github.com/szist/umf-detector) to add some feat
 
 Current enhancements in this fork:
 
-* Runtime-selection of an input module (OpenCV or Firewire) instead of compilation flag (see #1)
-* Runtime-configuration of the detector (greyscale or RGB) instead of compilation flag  (see #1)
-* Runtime-selection of graphical debug output  (see #2)
-* Better graphical debug output  (see #2)
+* Runtime-selection of an input module (OpenCV or Firewire) instead of compilation flag (see #1 )
+* Runtime-configuration of the detector (greyscale or RGB) instead of compilation flag  (see #1 )
+* Runtime-selection of graphical debug output  (see #2 )
+* Better graphical debug output  (see #2 )
 
 Planned enhancements:
 
@@ -80,5 +80,5 @@ This should generate the native libraries with Halide and a .dll
 ### Related Projects
 
 * [UMF generator server](https://github.com/szist/umf-generator-server)
-* [UMF generator client](https://github.com/szist/umf-generator-client)
+* UMF generator client ([original](https://github.com/szist/umf-generator-client) / [my fork](https://github.com/lenaschimmel/umf-generator-client) )
 * [UMF unity plugin](https://github.com/szist/umf-unity)
