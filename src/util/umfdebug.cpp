@@ -14,6 +14,30 @@
 
 namespace umf {
 
+template<typename ENUM> void BitSet<ENUM>::toggleBit(ENUM d) {
+    value ^= d;
+}
+
+template<typename ENUM> void BitSet<ENUM>::setBit(ENUM d) {
+    value |= d;
+}
+
+template<typename ENUM> void BitSet<ENUM>::setBit(ENUM d, bool b) {
+    if(b) {
+        value ^= d;
+    } else {
+        value &= !d;
+    }
+}
+
+template<typename ENUM> void BitSet<ENUM>::clearBit(ENUM d) {
+    value &= !d;
+}
+
+template<typename ENUM> bool BitSet<ENUM>::isBitSet(ENUM d) {
+    return (value & d) != 0;
+}
+
 //singleton definition
 template<>
 UMF UMFDebug* Singleton<UMFDebug>::m_pInstance = NULL;
@@ -94,5 +118,10 @@ void UMFDebug::logMsg(std::string msg)
 	printf("UMFD: %s\n", msg.c_str());
 #endif
 }
+
+// INSTANCING 
+// (not sure why this is needed here, and why we can't just instantiate the class template by using: 
+// template class BitSet<DEBUG_SHOW>; )
+template bool BitSet<DEBUG_SHOW>::isBitSet(DEBUG_SHOW d);
 
 }

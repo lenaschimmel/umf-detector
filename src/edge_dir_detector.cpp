@@ -181,8 +181,7 @@ EdgeDirDetector<NCHAN, fptype>::EdgeDirDetector()
 template<int NCHAN, class fptype> template<class T>
 Eigen::Matrix<int, NCHAN, 1> EdgeDirDetector<NCHAN, fptype>::getScore(const Image<T, NCHAN> *img,
                                                                       const std::vector< Eigen::Matrix<fptype, 2, 1> > &samples1,
-                                                                      const std::vector< Eigen::Matrix<fptype, 2, 1> > &samples2,
-                                                                      bool show)
+                                                                      const std::vector< Eigen::Matrix<fptype, 2, 1> > &samples2)
 {
     Eigen::Matrix<int, NCHAN, 1> score;
     score.setZero();
@@ -222,16 +221,13 @@ Eigen::Matrix<int, NCHAN, 1> EdgeDirDetector<NCHAN, fptype>::getScore(const Imag
 template<> template<>
 Eigen::Matrix<int, 1, 1> EdgeDirDetector<1, EDGEDIR_FPTYPE>::getScore(const ImageGray *img,
                                                       const std::vector<EdgeDirDetector::Vector2fp> &samples1,
-                                                      const std::vector<EdgeDirDetector::Vector2fp> &samples2,
-                                                      bool show)
+                                                      const std::vector<EdgeDirDetector::Vector2fp> &samples2)
 {
     typedef EDGEDIR_FPTYPE fptype;
     Eigen::Matrix<int, 1, 1> score;
     int iscore = 0;
 
-#ifdef UMF_DEBUG_COUNT_PIXELS
     UMFDebug *dbg = UMFDSingleton::Instance();
-#endif
     
     short sampleValue1;
     short sampleValue2;
@@ -262,7 +258,7 @@ Eigen::Matrix<int, 1, 1> EdgeDirDetector<1, EDGEDIR_FPTYPE>::getScore(const Imag
 
 
 #ifdef UMF_DEBUG_DRAW
-		if (show) {
+		if (dbg->debugShowBits.isBitSet(DEBUG_SHOW_DIRECTIONS_BIT)) {
 			UMFDebug *dbg = UMFDSingleton::Instance();
 			Renderer *rend = dbg->getRenderer();
 			int lineWidth = 1;
@@ -300,7 +296,6 @@ Eigen::Matrix<int, 1, 1> EdgeDirDetector<1, EDGEDIR_FPTYPE>::getScore(const Imag
  * @param img The input image with NCHAN channels
  * @param pencil1 The first pencil of lines
  * @param pencil2 the second pencil of lines
- * @param show whether to show debug output
  *
  * This function does the following
  *  -# check if the pencils are correctly aligned (one of them is not reversed somehow) and optionally reverse one direction
@@ -318,8 +313,7 @@ template<int NCHAN, class fptype> template<class T>
 void EdgeDirDetector<NCHAN, fptype>::extract(Image<T, NCHAN> *img,
                                              std::vector<Eigen::Vector3f> &pencil1,
                                              std::vector<Eigen::Vector3f> &pencil2,
-                                             ImageGray *mask,
-                                             bool show)
+                                             ImageGray *mask)
 {
     //first check if the pencils are aligned in the good way
     //alignement should be:
@@ -354,8 +348,6 @@ void EdgeDirDetector<NCHAN, fptype>::extract(Image<T, NCHAN> *img,
     this->extractionPoints.resize(this->rows*this->cols);
     std::vector<bool> pointValid(this->rows*this->cols, true);
 
-	bool showDirection = show && false;
-
     //now we can calculate the field centers
     for(unsigned int row = 0; row < this->rows; row++)
     {
@@ -379,10 +371,8 @@ void EdgeDirDetector<NCHAN, fptype>::extract(Image<T, NCHAN> *img,
 
     std::vector<Vector2fp> samples1(this->sampleCount);
     std::vector<Vector2fp> samples2(this->sampleCount);
-#ifdef UMF_DEBUG_COUNT_PIXELS
-    UMFDebug *dbg = UMFDSingleton::Instance();
-#endif
 
+    UMFDebug *dbg = UMFDSingleton::Instance();
 
     for(unsigned int rowI = 0; rowI < this->rows; rowI++)
     {
@@ -417,7 +407,7 @@ void EdgeDirDetector<NCHAN, fptype>::extract(Image<T, NCHAN> *img,
                     getSamplingPoints(current, right, verticalDirection, samples1, samples2);
 
 
-                    Eigen::Matrix<int, NCHAN, 1> score = this->getScore(img, samples1, samples2, showDirection);
+                    Eigen::Matrix<int, NCHAN, 1> score = this->getScore(img, samples1, samples2);
 
                     typename Marker<NCHAN>::DirectionType result; result.setZero();
 
@@ -447,7 +437,7 @@ void EdgeDirDetector<NCHAN, fptype>::extract(Image<T, NCHAN> *img,
 
                     getSamplingPoints(current, bottom, horizontalDirection, samples1, samples2);
 
-                    Eigen::Matrix<int, NCHAN, 1> score = this->getScore(img, samples1, samples2, showDirection);
+                    Eigen::Matrix<int, NCHAN, 1> score = this->getScore(img, samples1, samples2);
 
                     typename Marker<NCHAN>::DirectionType result; result.setZero();
 
@@ -461,16 +451,10 @@ void EdgeDirDetector<NCHAN, fptype>::extract(Image<T, NCHAN> *img,
     }
 
 #ifdef UMF_DEBUG_DRAW
-    bool showFieldCenters = false;
-    bool showEdgeDirections = true;
-    if(show)
-    {
-        //generate pencils going through the corners
-        if(showFieldCenters) this->showFieldCenters(mask);
-        if(showEdgeDirections) this->showEdgeDirections(mask);
-    }
+    //generate pencils going through the corners
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_FIELD_CENTERS_BIT)) this->showFieldCenters(mask);
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_DIRECTIONS_BIT)) this->showEdgeDirections(mask);
 #endif
-
 }
 
 /**
@@ -664,8 +648,8 @@ void EdgeDirDetector<NCHAN, fptype>::showEdgeDirections(ImageGray *mask)
 template EdgeDirDetector<1, EDGEDIR_FPTYPE>::EdgeDirDetector(); //for grayscale
 template EdgeDirDetector<3, EDGEDIR_FPTYPE>::EdgeDirDetector(); //for RGB
 
-template void EdgeDirDetector<1, EDGEDIR_FPTYPE>::extract(ImageGray *img, std::vector<Eigen::Vector3f> &pencil1, std::vector<Eigen::Vector3f> &pencil2, ImageGray* mask, bool show);
-template void EdgeDirDetector<3, EDGEDIR_FPTYPE>::extract(ImageRGB *img, std::vector<Eigen::Vector3f> &pencil1, std::vector<Eigen::Vector3f> &pencil2, ImageGray* mask, bool show);
+template void EdgeDirDetector<1, EDGEDIR_FPTYPE>::extract(ImageGray *img, std::vector<Eigen::Vector3f> &pencil1, std::vector<Eigen::Vector3f> &pencil2, ImageGray* mask);
+template void EdgeDirDetector<3, EDGEDIR_FPTYPE>::extract(ImageRGB *img, std::vector<Eigen::Vector3f> &pencil1, std::vector<Eigen::Vector3f> &pencil2, ImageGray* mask);
 
 template void EdgeDirDetector<1, EDGEDIR_FPTYPE>::setSampleCount(unsigned int sampleCount);
 template void EdgeDirDetector<3, EDGEDIR_FPTYPE>::setSampleCount(unsigned int sampleCount);

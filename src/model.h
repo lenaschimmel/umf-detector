@@ -38,7 +38,7 @@ public:
     bool matchModel(Image<T, NCHAN> *img, unsigned short subW, unsigned short subH,
                     std::vector< typename Marker<NCHAN>::DirectionType > &edgeDir,
                     std::vector< Eigen::Matrix<fptype, 2, 1> > &extractionPoints,
-                    Location &loc, bool show = false);
+                    Location &loc);
 
     /**
      * Compute the camera position and rotation based on the detected correspondences
@@ -74,7 +74,7 @@ public:
     /**
      * Compute 2D homography between the image and marker
      */
-    bool computeHomography(bool show = false);
+    bool computeHomography();
 
     /**
      * Project arbitrary 3D points into image space based on the computed camera pose

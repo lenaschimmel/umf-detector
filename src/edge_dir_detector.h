@@ -37,7 +37,7 @@ public:
     EdgeDirDetector();
 
     template<class T>
-    void extract(Image<T, NCHAN> *img, std::vector<Eigen::Vector3f> &pencil1, std::vector<Eigen::Vector3f> &pencil2, ImageGray* mask = NULL, bool show = false);
+    void extract(Image<T, NCHAN> *img, std::vector<Eigen::Vector3f> &pencil1, std::vector<Eigen::Vector3f> &pencil2, ImageGray* mask = NULL);
 
     void setFieldDiffThreshold(Eigen::Array<int, NCHAN, 1> threshold) { this->fieldDiffThreshold = threshold; }
     Eigen::Array<int, NCHAN, 1> getFieldDiffThreshold() { return this->fieldDiffThreshold; }
@@ -77,7 +77,7 @@ private:
                            std::vector<Vector2fp> &samples2);
 
     template<class T>
-    Eigen::Matrix<int, NCHAN, 1> getScore(const Image<T, NCHAN> *img, const std::vector<Vector2fp> &samples1, const std::vector<Vector2fp> &samples2, bool show = false);
+    Eigen::Matrix<int, NCHAN, 1> getScore(const Image<T, NCHAN> *img, const std::vector<Vector2fp> &samples1, const std::vector<Vector2fp> &samples2);
 
     std::vector< Vector2fp > extractionPoints;
 

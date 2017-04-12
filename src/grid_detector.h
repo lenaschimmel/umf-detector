@@ -96,8 +96,8 @@ public:
     void setInvKStepThreshold(float threshold) { this->invKStepThreshold = threshold; }
     float getInvKStepThreshold() { return this->invKStepThreshold; }
 
-    bool detect(std::vector<Edgel> &edgels, bool show = false);
-    bool detectIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed, bool show = false);
+    bool detect(std::vector<Edgel> &edgels);
+    bool detectIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed);
 
     /**
      * @brief getPencils get pencils
@@ -133,8 +133,8 @@ private:
 
     //private parts of the detection of the grid
 
-    bool separateTwoGroups(std::vector<Edgel> &edgels, bool show = false);
-    bool separateTwoGroupsIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed, bool show = false);
+    bool separateTwoGroups(std::vector<Edgel> &edgels);
+    bool separateTwoGroupsIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed);
 
     /**
      * @brief normalizeEdgels normalize all edgel lines as vec3

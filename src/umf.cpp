@@ -161,7 +161,7 @@ bool UMFDetector<NCHAN>::detectPosition(Image<T, NCHAN> *image, std::vector<Eige
     int logid = dbg->logEventStart();
 #endif
 
-    this->edgelDetect.detectEdges(image, NULL, false);
+    this->edgelDetect.detectEdges(image, NULL);
 
     //Orientation filter
     if(this->flags & UMF_FLAG_ORIENTATION)
@@ -171,7 +171,7 @@ bool UMFDetector<NCHAN>::detectPosition(Image<T, NCHAN> *image, std::vector<Eige
         //track.filterPoints(image, this->edgelDetect.getEdges());
     }
 
-    this->edgelDetect.findEdgels(image, NULL, true);
+    this->edgelDetect.findEdgels(image, NULL);
 
     //Orientation filter 2
     if(this->flags & UMF_FLAG_ORIENTATION)
@@ -193,7 +193,7 @@ bool UMFDetector<NCHAN>::detectPosition(Image<T, NCHAN> *image, std::vector<Eige
     std::vector<Eigen::Vector2f> bestPosition(imgPos.size());
 
     this->model.setUseCornerSearch(false);
-    int pcount = this->processSubWindow(image, poffset, psize, bestLoc, NULL, false);
+    int pcount = this->processSubWindow(image, poffset, psize, bestLoc, NULL);
     bool success = pcount != -1;
     success = false;
 
@@ -226,7 +226,7 @@ bool UMFDetector<NCHAN>::detectPosition(Image<T, NCHAN> *image, std::vector<Eige
         for(unsigned int subI = 0; subI < offsets.size(); subI++)
         {
             Location loc;
-            int pcount = this->processSubWindow(image, offsets[subI], wSize, loc, NULL, subI == 5);
+            int pcount = this->processSubWindow(image, offsets[subI], wSize, loc, NULL);
 
             if(pcount > bestCount)
             {
@@ -457,7 +457,7 @@ bool UMFDetector<NCHAN>::update(Image<T, NCHAN> *image,  float timeout)
 
 		if ((this->flags & UMF_FLAG_HOMOGRAPHY) != 0)
 		{
-			success = this->model.computeHomography(false);
+			success = this->model.computeHomography();
 		}
 		
     }
@@ -519,17 +519,15 @@ bool UMFDetector<NCHAN>::detect(Image<T, NCHAN> *image,  float timeout) /*throw 
     int logid = dbg->logEventStart();
 #endif
 
-    const bool showEdges = false;
-
     if( ((this->flags & UMF_FLAG_TRACK_POS) != 0) && 
         ((this->trackFlags & UMF_TRACK_SCANLINES) != 0) &&
         this->edgelDetect.getScanlineTracker().isEnabled())
     {
         std::vector< LineIterator< Image<T, NCHAN> > > iterators;
         this->edgelDetect.getScanlineTracker().getScanlines(this->model, image, iterators);
-        this->edgelDetect.detectEdges(image, iterators, this->filterMask, showEdges);
+        this->edgelDetect.detectEdges(image, iterators, this->filterMask);
     } else {
-        this->edgelDetect.detectEdges(image, this->filterMask, showEdges);
+        this->edgelDetect.detectEdges(image, this->filterMask);
     }
 
 #ifdef UMF_DEBUG_TIMING
@@ -551,13 +549,14 @@ bool UMFDetector<NCHAN>::detect(Image<T, NCHAN> *image,  float timeout) /*throw 
         track.filterPoints(this->edgelDetect.getEdges());
 
 #ifdef UMF_DEBUG_DRAW
-        track.show();
+        UMFDebug *dbg = UMFDSingleton::Instance();
+        if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_TRACKING_BIT)) {
+            track.show();
+        }
 #endif
     }
 
-    const bool showEdgels = false;
-
-    this->edgelDetect.findEdgels(image, this->filterMask, showEdgels);
+    this->edgelDetect.findEdgels(image, this->filterMask);
 
     this->checkTimeout(timeout);
 
@@ -578,13 +577,11 @@ bool UMFDetector<NCHAN>::detect(Image<T, NCHAN> *image,  float timeout) /*throw 
 
     this->model.setUseSubPixel((this->flags & UMF_FLAG_SUBPIXEL) > 0);
 
-    const bool showMainProcessing = true;
-
     //global pass first
 	Location goodLoc;
     Eigen::Vector2i poffset(0, 0);
     Eigen::Vector2i psize(image->width, image->height);
-    int pcount = this->processSubWindow(image, poffset, psize, goodLoc, filterMask, showMainProcessing);
+    int pcount = this->processSubWindow(image, poffset, psize, goodLoc, filterMask);
 #ifdef UMF_DEBUG_TIMING
     dbg->logEventEnd(logid, "WIN0");
     logid = dbg->logEventStart();
@@ -615,8 +612,7 @@ bool UMFDetector<NCHAN>::detect(Image<T, NCHAN> *image,  float timeout) /*throw 
         for(unsigned int subI = 0; subI < offsets.size(); subI++)
         {
             Location loc;
-			bool show_sub = false;
-            int pcount = this->processSubWindow(image, offsets[subI], wSize, loc, filterMask, show_sub);
+            int pcount = this->processSubWindow(image, offsets[subI], wSize, loc, filterMask);
 
             if(pcount > (int) bestSet.size())
             {
@@ -661,7 +657,7 @@ bool UMFDetector<NCHAN>::detect(Image<T, NCHAN> *image,  float timeout) /*throw 
  * Try to detect UMF inside a sub-window of the whole image
  */
 template <int NCHAN> template<class T>
-int UMFDetector<NCHAN>::processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i &offset, Eigen::Vector2i &size, Location &loc, ImageGray *mask, bool show)
+int UMFDetector<NCHAN>::processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i &offset, Eigen::Vector2i &size, Location &loc, ImageGray *mask)
 {
 #ifdef UMF_DEBUG_TIMING
     UMFDebug *dbg = UMFDSingleton::Instance();
@@ -677,10 +673,9 @@ int UMFDetector<NCHAN>::processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i
     this->gridDetect.setTransformCenter(Eigen::Vector2i(offset[0] + size[0]/2, offset[1] + size[1]/2));
     this->gridDetect.setTransformScale(2.0f/(float) (std::min)((float) size[0], (float) size[1]));
 
-    bool showGrid = true && show;
     if(size[0] >= image->width && size[1] >= image->height)
     {
-        success = this->gridDetect.detect(this->edgelDetect.getEdgels(), showGrid);
+        success = this->gridDetect.detect(this->edgelDetect.getEdgels());
     }
     else {
         std::vector<Edgel> edgels;
@@ -696,7 +691,7 @@ int UMFDetector<NCHAN>::processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i
                 edgels.push_back(*edgelIt);
             }
         }
-        success = this->gridDetect.detect(edgels, showGrid);
+        success = this->gridDetect.detect(edgels);
     }
 
     if(!success)
@@ -712,9 +707,7 @@ int UMFDetector<NCHAN>::processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i
     int logid = dbg->logEventStart();
 #endif
 
-    const bool showEdgeDirs = false && show;
-
-    this->edgeDirDetect.extract(image, this->gridDetect.getPencil(0), this->gridDetect.getPencil(1), mask, showEdgeDirs);
+    this->edgeDirDetect.extract(image, this->gridDetect.getPencil(0), this->gridDetect.getPencil(1), mask);
 
 #ifdef UMF_DEBUG_TIMING
     dbg->logEventEnd(logid, "X");
@@ -722,7 +715,7 @@ int UMFDetector<NCHAN>::processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i
 
     success = this->model.matchModel(image, this->edgeDirDetect.getCols(), this->edgeDirDetect.getRows(),
                                      this->edgeDirDetect.getEdgeDirections(),
-                                     this->edgeDirDetect.getExtractionPoints(), loc, true && show);
+                                     this->edgeDirDetect.getExtractionPoints(), loc);
 
     return success ? this->model.getCorrespondences().size() : -1;
 }

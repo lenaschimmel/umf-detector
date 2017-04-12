@@ -108,7 +108,7 @@ private:
     bool checkTimeout(float timeout, bool shouldThrow = true) /*throw(DetectionTimeoutException)*/ ;
 
     template <class T >
-    int processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i &offset, Eigen::Vector2i &size, Location &loc, ImageGray *mask = NULL, bool show = false);
+    int processSubWindow(Image<T, NCHAN> *image, Eigen::Vector2i &offset, Eigen::Vector2i &size, Location &loc, ImageGray *mask = NULL);
 
     //generate subwindows to search for UMF marker
     void getSubwindowOffsets(const Eigen::Vector2i &imgSize,

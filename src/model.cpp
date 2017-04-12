@@ -108,17 +108,13 @@ static inline int clamp(int x, int a, int b)
 template<int NCHAN> template<class T, class fptype>
 bool Model<NCHAN>::matchModel(Image<T, NCHAN> *img, unsigned short subW, unsigned short subH,
                               std::vector< typename Marker<NCHAN>::DirectionType > &edgeDir,
-                              std::vector< Eigen::Matrix<fptype, 2, 1> > &extractionPoints, Location &loc,
-                              bool show)
+                              std::vector< Eigen::Matrix<fptype, 2, 1> > &extractionPoints, Location &loc)
 {
 
     if(this->marker == NULL)
     {
         return false;
     }
-
-    bool showCorners = false && show;
-    bool showCorrespondences = false && show;
 
     //TODO maybe make a list of the corners instead of a map, that way we can add the position, too
     std::vector<unsigned char> corners;
@@ -132,7 +128,8 @@ bool Model<NCHAN>::matchModel(Image<T, NCHAN> *img, unsigned short subW, unsigne
     }
 
 #ifdef UMF_DEBUG_DRAW
-    if(showCorners)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_CORNERS_BIT))
     {
         this->showCorners(corners, extractionPoints, subW, subH);
     }//show
@@ -147,7 +144,7 @@ bool Model<NCHAN>::matchModel(Image<T, NCHAN> *img, unsigned short subW, unsigne
     }
 
 #ifdef UMF_DEBUG_DRAW
-    if(showCorrespondences)
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_CORRESPONDENCES_BIT))
     {
         this->showCorrespondences();
     }//show
@@ -157,11 +154,12 @@ bool Model<NCHAN>::matchModel(Image<T, NCHAN> *img, unsigned short subW, unsigne
 }
 
 template<int NCHAN>
-bool Model<NCHAN>::computeHomography(bool show)
+bool Model<NCHAN>::computeHomography()
 {
 
 #ifdef UMF_DEBUG_DRAW
-	if(show)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+	if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_CORRESPONDENCES_BIT))
 	{
 		this->showCorrespondences(true);
 	}
@@ -304,11 +302,12 @@ bool Model<NCHAN>::computeCameraPosition(Image<T, NCHAN> *img, unsigned short su
     }
 
 #ifdef UMF_DEBUG_DRAW
-	if (show)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+	if (dbg->debugShowBits.isBitSet(DEBUG_SHOW_CORRESPONDENCES_BIT))
 	{
-		//this->computeReprojectionErrors(Eigen::Vector2i(img->width, img->height));
-		//this->scaleReprojectionByTileSize(Eigen::Vector2i(img->width, img->height));
-		//this->showCorrespondences(false);
+		this->computeReprojectionErrors(Eigen::Vector2i(img->width, img->height));
+		this->scaleReprojectionByTileSize(Eigen::Vector2i(img->width, img->height));
+		this->showCorrespondences(false);
 	}
 #endif
 
@@ -331,17 +330,14 @@ bool Model<NCHAN>::computeCameraPosition(Image<T, NCHAN> *img, unsigned short su
 	}
 	
 #ifdef UMF_DEBUG_DRAW
-    if(success && show)
+    if(success && dbg->debugShowBits.isBitSet(DEBUG_SHOW_CORRESPONDENCES_BIT))
     {
 		this->computeReprojectionErrors(Eigen::Vector2i(img->width, img->height));
 		this->scaleReprojectionByTileSize(Eigen::Vector2i(img->width, img->height));
         this->showCorrespondences(true);
     }
-#endif
 
-
-#ifdef UMF_DEBUG_DRAW
-    if(success && show)
+    if(success && dbg->debugShowBits.isBitSet(DEBUG_SHOW_BOX_BIT))
     {
         this->showBox();
     }
@@ -894,13 +890,13 @@ template const Eigen::Matrix3d & Model<3>::getCameraMatrix() const;
 
 template bool Model<1>::matchModel(ImageGray *img, unsigned short subW, unsigned short subH,
                                    std::vector< typename Marker<1>::DirectionType > &edgeDir,
-                                   std::vector< Eigen::Matrix<EDGEDIR_FPTYPE, 2, 1> > &extractionPoints, Location &loc, bool show);
+                                   std::vector< Eigen::Matrix<EDGEDIR_FPTYPE, 2, 1> > &extractionPoints, Location &loc);
 template bool Model<3>::matchModel(ImageRGB *img, unsigned short subW, unsigned short subH,
                                    std::vector< typename Marker<3>::DirectionType > &edgeDir,
-                                   std::vector< Eigen::Matrix<EDGEDIR_FPTYPE, 2, 1> > &extractionPoints, Location &loc, bool show);
+                                   std::vector< Eigen::Matrix<EDGEDIR_FPTYPE, 2, 1> > &extractionPoints, Location &loc);
 
-template bool Model<1>::computeHomography(bool show);
-template bool Model<3>::computeHomography(bool show);
+template bool Model<1>::computeHomography();
+template bool Model<3>::computeHomography();
 template bool Model<1>::computeCameraPosition(ImageGray *img, unsigned short subW, unsigned short subH, bool refine, bool show, ImageGray* mask);
 template bool Model<3>::computeCameraPosition(ImageRGB *img, unsigned short subW, unsigned short subH, bool refine, bool show, ImageGray* mask);
 

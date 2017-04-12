@@ -23,13 +23,13 @@ public:
     EdgelDetector();
 
     template <class T, int NCHAN>
-    void detectEdges(Image<T, NCHAN> *image, ImageGray *mask = NULL, bool show = false);
+    void detectEdges(Image<T, NCHAN> *image, ImageGray *mask = NULL);
 
     template <class T, int NCHAN>
-    void detectEdges(Image<T, NCHAN> *image, std::vector< LineIterator<Image<T,NCHAN> > > &scanlines, ImageGray *mask = NULL, bool show = false);
+    void detectEdges(Image<T, NCHAN> *image, std::vector< LineIterator<Image<T,NCHAN> > > &scanlines, ImageGray *mask = NULL);
 
     template <class T, int NCHAN>
-    void findEdgels(Image<T, NCHAN> *image, ImageGray *mask = NULL, bool show = false);
+    void findEdgels(Image<T, NCHAN> *image, ImageGray *mask = NULL);
 
     std::vector<Edgel> &getEdgels() { return this->edgels; }
 	void setEdgels(std::vector<Edgel> &edgels) { this->edgels = edgels; }

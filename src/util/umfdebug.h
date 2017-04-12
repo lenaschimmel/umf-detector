@@ -21,6 +21,20 @@
 namespace umf
 {
 
+enum DEBUG_SHOW {
+    DEBUG_SHOW_DIRECTIONS_BIT = 0x1,
+    DEBUG_SHOW_FIELD_CENTERS_BIT = 0x2,
+    DEBUG_SHOW_EDGES_BIT = 0x4,
+    DEBUG_SHOW_FILTERED_LINES_BIT = 0x8,
+    DEBUG_SHOW_GRID_BIT = 0x10,
+    DEBUG_SHOW_GROUPS_BIT = 0x20,
+    DEBUG_SHOW_CORNERS_BIT = 0x40,
+    DEBUG_SHOW_CORRESPONDENCES_BIT = 0x80,
+    DEBUG_SHOW_BOX_BIT = 0x100,
+    DEBUG_SHOW_TRACKING_BIT = 0x200,
+    DEBUG_SHOW_EDGELS_BIT = 0x400
+};
+
 /**
  * Timer for measuiring performance. Should provide nanosecond precision.
  * Don't use directly. Better to use the logged times as implemented in
@@ -91,7 +105,18 @@ public:
     }
 };
 
+template<typename ENUM>
+class BitSet {
+public:
+    void toggleBit(ENUM d);
+    void setBit(ENUM d);
+    void setBit(ENUM d, bool b);
+    void clearBit(ENUM d);
+    bool isBitSet(ENUM d);
 
+private:
+    ENUM value;
+};
 
 /**
  * Debug and Performance evaluation helper. Also provides interface for accessing the renderer
@@ -154,6 +179,8 @@ public:
     //platform independent log (android + stdout)
     static void logMsg(std::string message);
 
+    BitSet<DEBUG_SHOW> debugShowBits;
+
 private:
     Renderer *renderer;
     long long pixelCount;
@@ -165,6 +192,7 @@ private:
     int prevID;
 	std::string failedReason;
     //timing stuff ent
+
 };
 
 

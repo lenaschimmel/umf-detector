@@ -36,17 +36,13 @@ GridDetector::GridDetector()
     this->directions.resize(this->histogramSize);
 }
 
-bool GridDetector::detect(std::vector<Edgel> &edgels, bool show)
+bool GridDetector::detect(std::vector<Edgel> &edgels)
 {
     bool success = false;
 
-    const bool showTwoGroups = show && false;
-    const bool showFilteredLines = show && false;
-    const bool showGrid = show && true;
-
     ////////////////////////////////////////////////////////////////////////////////
     //GROUP
-    success = this->separateTwoGroups(edgels, showTwoGroups);
+    success = this->separateTwoGroups(edgels);
 
     if(!success)
     {
@@ -59,8 +55,8 @@ bool GridDetector::detect(std::vector<Edgel> &edgels, bool show)
     this->transformEdgels();
     this->normalizeEdgels();
 
-    success = this->findVanish(this->groups[0], this->vanishing[0], showFilteredLines)
-            && this->findVanish(this->groups[1], this->vanishing[1], showFilteredLines);
+    success = this->findVanish(this->groups[0], this->vanishing[0])
+            && this->findVanish(this->groups[1], this->vanishing[1]);
 
 
     if(!success)
@@ -73,7 +69,8 @@ bool GridDetector::detect(std::vector<Edgel> &edgels, bool show)
     //now we can do anything we want with the groups. they are not needed any more
 
 #ifdef UMF_DEBUG_DRAW
-    if(showFilteredLines)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_FILTERED_LINES_BIT))
     {
         this->transformEdgelsBack();
         this->showGroups(true);
@@ -90,7 +87,7 @@ bool GridDetector::detect(std::vector<Edgel> &edgels, bool show)
     }
 
 #ifdef UMF_DEBUG_DRAW
-    if(showGrid)
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_GRID_BIT))
     {
         //generate pencils going through the corners
         bool p = this->generatePencils(0.5);
@@ -114,7 +111,7 @@ bool GridDetector::detect(std::vector<Edgel> &edgels, bool show)
     return success;
 }
 
-bool GridDetector::detectIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed, bool show)
+bool GridDetector::detectIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed)
 {
     //if this is going to be used most of the time, then this should be rewritten
     //so we do not create a subvector each time
@@ -124,7 +121,7 @@ bool GridDetector::detectIndexed(std::vector<Edgel> &edgels, std::vector<int> &i
         subPart[i] = edgels[indexed[i]];
     }
 
-    return this->detect(subPart, show);
+    return this->detect(subPart);
 }
 
 
@@ -257,7 +254,7 @@ void getMainTwoBinsKMeans(std::vector<int> &origHistogram, int maxBins[2][3])
  * If the groups are overlapping the function will return false.
  * The corresponding edgels are then stored into two groups. In case one the groups is empty, the function again returns false.
  */
-bool GridDetector::separateTwoGroups(std::vector<Edgel> &edgels, bool show)
+bool GridDetector::separateTwoGroups(std::vector<Edgel> &edgels)
 {
 
     this->groups[0].clear();
@@ -320,7 +317,8 @@ bool GridDetector::separateTwoGroups(std::vector<Edgel> &edgels, bool show)
 
 
 #ifdef UMF_DEBUG_DRAW
-    if(show)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_GROUPS_BIT))
     {
         this->showGroups();
     }
@@ -915,7 +913,7 @@ void GridDetector::showPencils()
  * @param show
  * @return success
  */
-bool GridDetector::separateTwoGroupsIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed, bool show)
+bool GridDetector::separateTwoGroupsIndexed(std::vector<Edgel> &edgels, std::vector<int> &indexed)
 {
     //if this is going to be used most of the time, then this should be rewritten
     //so we do not create a subvector each time
@@ -924,7 +922,7 @@ bool GridDetector::separateTwoGroupsIndexed(std::vector<Edgel> &edgels, std::vec
     {
         subPart[i] = edgels[indexed[i]];
     }
-    return this->separateTwoGroups(subPart, show);
+    return this->separateTwoGroups(subPart);
 }
 
 

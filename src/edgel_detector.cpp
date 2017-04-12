@@ -323,7 +323,7 @@ static void scan(ImageGray *input,
  *
  */
 template<class T, int NCHAN>
-void EdgelDetector::detectEdges(Image<T, NCHAN> *image, ImageGray *mask, bool show)
+void EdgelDetector::detectEdges(Image<T, NCHAN> *image, ImageGray *mask)
 {
     this->points.clear();
     this->points.reserve(500);
@@ -334,7 +334,8 @@ void EdgelDetector::detectEdges(Image<T, NCHAN> *image, ImageGray *mask, bool sh
     scan< fixp::fixp_8 >(image, this->points, mask, this->scanlineStep, false, this->scanlineWindow, this->compareWindow, this->adaptiveThreshold);
 
 #ifdef UMF_DEBUG_DRAW
-    if(show)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_EDGES_BIT))
     {
         UMFDebug *dbg = UMFDSingleton::Instance();
         Renderer *rend = dbg->getRenderer();
@@ -646,7 +647,7 @@ static void scan(ImageGray *input,
 }
 
 template <class T, int NCHAN>
-void EdgelDetector::detectEdges(Image<T, NCHAN> *image, std::vector< LineIterator<Image<T,NCHAN> > > &scanlines, ImageGray *mask, bool show)
+void EdgelDetector::detectEdges(Image<T, NCHAN> *image, std::vector< LineIterator<Image<T,NCHAN> > > &scanlines, ImageGray *mask)
 {
     this->points.clear();
     this->points.reserve(500);
@@ -658,7 +659,8 @@ void EdgelDetector::detectEdges(Image<T, NCHAN> *image, std::vector< LineIterato
     }
 
 #ifdef UMF_DEBUG_DRAW
-    if(show)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_EDGES_BIT))
     {
         UMFDebug *dbg = UMFDSingleton::Instance();
         Renderer *rend = dbg->getRenderer();
@@ -922,7 +924,7 @@ bool EdgelDetector::findEdgel(Image<T, NCHAN> *image,
  * \image html 3_edgels.png "The detected edgels for scanline step"
  */
 template<class T, int NCHAN>
-void EdgelDetector::findEdgels(Image<T, NCHAN> *image, ImageGray* mask, bool show)
+void EdgelDetector::findEdgels(Image<T, NCHAN> *image, ImageGray* mask)
 {
     this->edgels.clear();
 
@@ -937,7 +939,8 @@ void EdgelDetector::findEdgels(Image<T, NCHAN> *image, ImageGray* mask, bool sho
     }
 
 #ifdef UMF_DEBUG
-    if(show)
+    UMFDebug *dbg = UMFDSingleton::Instance();
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_EDGELS_BIT))
     {
         this->showEdgels();
     }
@@ -964,13 +967,13 @@ void EdgelDetector::showEdgels()
     }
 }
 
-template void EdgelDetector::detectEdges(ImageRGB *image, ImageGray *mask, bool show);
-template void EdgelDetector::detectEdges(ImageGray *image, ImageGray *mask, bool show);
+template void EdgelDetector::detectEdges(ImageRGB *image, ImageGray *mask);
+template void EdgelDetector::detectEdges(ImageGray *image, ImageGray *mask);
 
 
-template void EdgelDetector::detectEdges(ImageRGB *image, std::vector< LineIterator< ImageRGB > > &scanlines, ImageGray *mask, bool show);
-template void EdgelDetector::detectEdges(ImageGray *image, std::vector< LineIterator< ImageGray > > &scanlines, ImageGray *mask, bool show);
+template void EdgelDetector::detectEdges(ImageRGB *image, std::vector< LineIterator< ImageRGB > > &scanlines, ImageGray *mask);
+template void EdgelDetector::detectEdges(ImageGray *image, std::vector< LineIterator< ImageGray > > &scanlines, ImageGray *mask);
 
-template void EdgelDetector::findEdgels(ImageRGB *image, ImageGray *mask, bool show);
-template void EdgelDetector::findEdgels(ImageGray *image, ImageGray *mask, bool show);
+template void EdgelDetector::findEdgels(ImageRGB *image, ImageGray *mask);
+template void EdgelDetector::findEdgels(ImageGray *image, ImageGray *mask);
 }
