@@ -335,7 +335,7 @@ void EdgelDetector::detectEdges(Image<T, NCHAN> *image, ImageGray *mask)
 
 #ifdef UMF_DEBUG_DRAW
     UMFDebug *dbg = UMFDSingleton::Instance();
-    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_EDGES_BIT))
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_SCANLINES_BIT))
     {
         UMFDebug *dbg = UMFDSingleton::Instance();
         Renderer *rend = dbg->getRenderer();
@@ -660,7 +660,7 @@ void EdgelDetector::detectEdges(Image<T, NCHAN> *image, std::vector< LineIterato
 
 #ifdef UMF_DEBUG_DRAW
     UMFDebug *dbg = UMFDSingleton::Instance();
-    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_EDGES_BIT))
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_SCANLINES_BIT))
     {
         UMFDebug *dbg = UMFDSingleton::Instance();
         Renderer *rend = dbg->getRenderer();

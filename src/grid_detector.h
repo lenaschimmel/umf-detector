@@ -120,7 +120,7 @@ public:
 
 private:
 
-    void showGroups(bool filtered = false);
+    void showGroups(std::vector<std::vector<umf::Edgel>>);
     void showPencils();
 
     void transformLine(Eigen::Vector3f &line);

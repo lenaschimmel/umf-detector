@@ -19,7 +19,7 @@ GridDetector::GridDetector()
     this->pencils[1].clear();
     this->groups[0].clear();
     this->groups[1].clear();
-    this->histogramSize = 12;
+    this->histogramSize = 24;
     this->transformScale = 1.0f/240;
     this->transformCenter = Eigen::Vector2i(320, 240);
     this->generateLineCountHalf = 5;
@@ -40,6 +40,15 @@ bool GridDetector::detect(std::vector<Edgel> &edgels)
 {
     bool success = false;
 
+
+#ifdef UMF_DEBUG_DRAW
+    UMFDebug *dbg = UMFDSingleton::Instance();
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_UNFILTERED_LINES_BIT))
+    {
+        this->showGroups({edgels});
+    }
+#endif
+
     ////////////////////////////////////////////////////////////////////////////////
     //GROUP
     success = this->separateTwoGroups(edgels);
@@ -48,6 +57,13 @@ bool GridDetector::detect(std::vector<Edgel> &edgels)
     {
         return false;
     }
+
+#ifdef UMF_DEBUG_DRAW
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_FILTERED_LINES_BIT))
+    {
+        this->showGroups({this->groups[0], this->groups[1]});
+    }
+#endif
 
     ////////////////////////////////////////////////////////////////////////////////
     //VANISH
@@ -68,15 +84,6 @@ bool GridDetector::detect(std::vector<Edgel> &edgels)
     this->copyEdgels2Pencils();
     //now we can do anything we want with the groups. they are not needed any more
 
-#ifdef UMF_DEBUG_DRAW
-    UMFDebug *dbg = UMFDSingleton::Instance();
-    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_FILTERED_LINES_BIT))
-    {
-        this->transformEdgelsBack();
-        this->showGroups(true);
-    }
-#endif
-
     ////////////////////////////////////////////////////////////////////////////////
     //GRID
     success = this->detectMesh();
@@ -87,7 +94,7 @@ bool GridDetector::detect(std::vector<Edgel> &edgels)
     }
 
 #ifdef UMF_DEBUG_DRAW
-    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_GRID_BIT))
+    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_PENCILS_BIT))
     {
         //generate pencils going through the corners
         bool p = this->generatePencils(0.5);
@@ -314,15 +321,6 @@ bool GridDetector::separateTwoGroups(std::vector<Edgel> &edgels)
             this->groups[1].push_back(**dit);
         }
     }
-
-
-#ifdef UMF_DEBUG_DRAW
-    UMFDebug *dbg = UMFDSingleton::Instance();
-    if(dbg->debugShowBits.isBitSet(DEBUG_SHOW_GROUPS_BIT))
-    {
-        this->showGroups();
-    }
-#endif
 
     return !(this->groups[0].empty() || this->groups[1].empty());
 }
@@ -844,7 +842,7 @@ bool GridDetector::generatePencils(float extraIndexOffset)
 }
 
 
-void GridDetector::showGroups(bool filtered)
+void GridDetector::showGroups(std::vector<std::vector<umf::Edgel>> groups)
 {
     UMFDebug *dbg = UMFDSingleton::Instance();
     Renderer *rend = dbg->getRenderer();
@@ -856,26 +854,17 @@ void GridDetector::showGroups(bool filtered)
 
     
     int lineWidth = 1;
-    Eigen::Vector3i lineColor1(255, 98, 51);
-    Eigen::Vector3i lineColor2(100, 100, 255);
-    
-	if(filtered) {
-        lineWidth = 1;
-        lineColor1 = Eigen::Vector3i(0, 40, 255);
-        lineColor2 = Eigen::Vector3i(255, 40, 0);
+    auto lineColors = std::vector<Eigen::Vector3i>({ {0, 40, 255}, {255, 40, 0}, {127,40,127}, {128, 128, 255}, {255, 128, 128}, {255,128,255} });
+    int colorIndex = (groups.size() == 1) ? 2 : 0;
+    for(auto edgels : groups) {
+        for(auto edgel : edgels) {
+            drawLineEq(rend, edgel.line, lineColors[colorIndex], lineWidth);
+
+            drawLine(rend, Eigen::Vector2i(edgel.endPoints[0][0], edgel.endPoints[0][1]),
+                           Eigen::Vector2i(edgel.endPoints[1][0],edgel.endPoints[1][1]), lineColors[colorIndex+3], lineWidth);
+        }
+        colorIndex++;
     }
-
-
-    for(std::vector<Edgel>::iterator eIt = this->groups[0].begin(); eIt != this->groups[0].end(); eIt++)
-    {
-        drawLineEq(rend, eIt->line, lineColor1, lineWidth);
-    }
-
-    for(std::vector<Edgel>::iterator eIt = this->groups[1].begin(); eIt != this->groups[1].end(); eIt++)
-    {
-        drawLineEq(rend, eIt->line, lineColor2, lineWidth);
-    }
-
 }
 
 void GridDetector::showPencils()
@@ -887,7 +876,6 @@ void GridDetector::showPencils()
     {
         return;
     }
-
 
     Eigen::Vector3i lineColor1(255, 40, 0);
     //Eigen::Vector3i lineColor2(100, 100, 255);

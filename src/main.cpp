@@ -311,6 +311,9 @@ int Main::detect()
 		detector->setSubWindowVerticalCount(3);
 	}
 
+    // FIXME just for testing:
+    detector->setSubWindowVerticalCount(1);
+
     detector->model.setCameraProperties(cameraMatrix, distCoeffs);
 	detector->model.setPnPFlags(PNP_FLAG_COMPUTE_CAMERA | PNP_FLAG_GL_PROJECTION_MV | PNP_FLAG_SWAP_Y | PNP_FLAG_RIGHT_HANDED | PNP_FLAG_FILTER_REPR /* | PNP_FLAG_LOOK_Z_POSITIVE*/);
 
@@ -490,17 +493,15 @@ int Main::detect()
 #endif
 		int key = -1;
 
-#ifdef UMF_DEBUG
-        key = cvWaitKey(0);
-#else
-		key = cvWaitKey(2);
-#endif
+        UMFDebug *dbg = UMFDSingleton::Instance();
+        int waitTimeMs = dbg->debugShowBits.isBitSet(DEBUG_SHOW_MANUAL_BIT) ? 0 : 2;
+        key = cvWaitKey(waitTimeMs);
 
         if((char) key == 'q') {
             break;
         }
 
-        UMFDebug *dbg = UMFDSingleton::Instance();
+        
         switch((char) key) {
             case 's':
                 cvSaveImage("test/test.png", cvrenderer->getCVImg());
@@ -509,25 +510,25 @@ int Main::detect()
                 dbg->debugShowBits.clearBit(DEBUG_SHOW_ALL);
                 break;
             case '1':
-                dbg->debugShowBits.toggleBit(DEBUG_SHOW_EDGES_BIT);
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_SCANLINES_BIT);
                 break;
             case '2':
-                dbg->debugShowBits.toggleBit(DEBUG_SHOW_FILTERED_LINES_BIT);
-                break;
-            case '3':
                 dbg->debugShowBits.toggleBit(DEBUG_SHOW_EDGELS_BIT);
                 break;
+            case '3':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_UNFILTERED_LINES_BIT);
+                break;
             case '4':
-                dbg->debugShowBits.toggleBit(DEBUG_SHOW_GRID_BIT);
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_FILTERED_LINES_BIT);
                 break;
             case '5':
-                dbg->debugShowBits.toggleBit(DEBUG_SHOW_FIELD_CENTERS_BIT);
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_PENCILS_BIT);
                 break;
             case '6':
-                dbg->debugShowBits.toggleBit(DEBUG_SHOW_DIRECTIONS_BIT);
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_FIELD_CENTERS_BIT);
                 break;
             case '7':
-                dbg->debugShowBits.toggleBit(DEBUG_SHOW_GROUPS_BIT);
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_DIRECTIONS_BIT);
                 break;
             case '8':
                 dbg->debugShowBits.toggleBit(DEBUG_SHOW_CORNERS_BIT);
@@ -540,6 +541,9 @@ int Main::detect()
                 break;
             case 'b':
                 dbg->debugShowBits.toggleBit(DEBUG_SHOW_TRACKING_BIT);
+                break;
+            case 'm':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_MANUAL_BIT);
                 break;
         }
 
