@@ -89,7 +89,7 @@ public:
     int run(int argc, char* argv[]);
 
 private:
-    int detect();
+    template <int NCHAN> int detect();
 
     int detector_flags;
     ImageFactory *factory;
@@ -112,6 +112,7 @@ private:
     bool max_precision;
     bool print_positions;
     bool is_chroma;
+    bool is_rgb;
     bool writeVideo;
 	bool writeFrames;
 	bool calibrate;
@@ -128,15 +129,15 @@ int main(int argc, char* argv[])
 
 int Main::run(int argc, char* argv[])
 {
-	arg_alg         = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), chroma]");
-    arg_marker    = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
-    arg_ivideo    = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing. Use 'firewire', possibly together with '-k', to select that source.");
-    arg_calib     = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
+	arg_alg        = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), rgb, chroma]");
+    arg_marker     = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
+    arg_ivideo     = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing. Use 'firewire', possibly together with '-k', to select that source.");
+    arg_calib      = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
 	arg_maxprec    = arg_lit0("xX",    "max",          "if maximum precision should be the goal");
 	arg_pos        = arg_lit0("pP",    "positions",    "if set, for each frame the position is output instead of success rate");
     arg_help       = arg_lit0("h",     "help",         "print this help and exit");
-    arg_cam         = arg_int0("kK",    "camera",       NULL, "the index of the webcam to use, starting from 0");
-    arg_path        = arg_str0("dD",    "dir",          "output_path", "the relative directory to store from the current location without the / symbol");
+    arg_cam        = arg_int0("kK",    "camera",       NULL, "the index of the webcam to use, starting from 0");
+    arg_path       = arg_str0("dD",    "dir",          "output_path", "the relative directory to store from the current location without the / symbol");
     arg_recalib    = arg_lit0("rR",    "recalib",      "perform a re-calibration for the camera. This will halt the program after a while.");
     arg_outvideo   = arg_lit0(NULL,    "ov,outvideo",  "Record the whole process into ./output.avi");
     arg_outframes  = arg_lit0(NULL,    "of,outframe",  "Record individual frames.");
@@ -189,6 +190,9 @@ int Main::run(int argc, char* argv[])
 		std::string algorithm = std::string(arg_alg->sval[0]);
 		if (algorithm.compare("chroma") == 0) {
 			is_chroma = true;
+		}		
+        if (algorithm.compare("rgb") == 0) {
+			is_rgb = true;
 		}
 	}
 
@@ -290,12 +294,17 @@ int Main::run(int argc, char* argv[])
 
 	calibCV = new Calibration(imgSize(0), imgSize(1), fovy);
 
-    return detect();
+    if (is_rgb) {
+        return detect<3>();
+    } else {
+        return detect<1>();
+    }
 }
 
+template <int NCHAN>
 int Main::detect() 
 {
-    UMFDetector<1> *detector = new UMFDetector<1>(detector_flags); 
+    UMFDetector<NCHAN> *detector = new UMFDetector<NCHAN>(detector_flags); 
     detector->setTrackingFlags(0/*UMF_TRACK_MARKER | UMF_TRACK_SCANLINES | UMF_TRACK_CORNERS*/);
 
 	if (factory->getHeight() > 719) {
@@ -397,7 +406,11 @@ int Main::detect()
 
 		slogger.detectStart();
         try{
-            success = detector->update(imgGray, -1.f);
+            if(NCHAN == 1) {
+                success = reinterpret_cast<UMFDetector<1>*>(detector)->update(imgGray, -1.f);
+            } else {
+                success = reinterpret_cast<UMFDetector<3>*>(detector)->update(img, -1.f);
+            }
         } catch(DetectionTimeoutException &)
         {
             std::cout << "Timed out" << std::endl;
