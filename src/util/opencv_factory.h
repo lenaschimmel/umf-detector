@@ -15,15 +15,6 @@
 namespace umf
 {
 
-typedef struct
-{
-    bool file;
-    std::string filename;
-    int cameraIndex;
-	int width;
-	int height;
-} CVImageInitStruct;
-
 /**
  * Load images, videos or camera using OpenCV library
  */

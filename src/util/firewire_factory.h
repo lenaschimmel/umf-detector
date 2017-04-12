@@ -2,6 +2,7 @@
 #define __UMF_UTIL_FIREWIRE_FACTORY_H__
 
 #include "stream_factory.h"
+#include "../defines.h"
 
 #ifdef HAVE_FIREWIRE_LIB
 

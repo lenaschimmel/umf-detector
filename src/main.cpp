@@ -81,69 +81,14 @@ using namespace umf;
 #define M_PI_4 0.78539816339744830961566084581988
 #endif
 
-char *loadFile(const char* filename)
-{
-    FILE *f = fopen(filename, "r");
-    if(!f)
-    {
-        return NULL;
-    }
-    fseek(f, 0, SEEK_END);
-    long fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
+char *loadFile(const char* filename);
+void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen::VectorXd &distCoeffs);
 
-    char *str = new char[fsize + 1];
-    fread(str, fsize, 1, f);
-    fclose(f);
-
-    str[fsize] = '\0';
-    return str;
-}
-
-
-void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen::VectorXd &distCoeffs)
-{
-    std::fstream dataFile(cameraInfo, std::fstream::in);
-
-    if(dataFile.fail())
-    {
-        return;
-    }
-
-    cameraMatrix.setZero();
-    distCoeffs.setZero();
-
-    int row = 0;
-    while(1)
-    {
-        if(dataFile.eof()){
-            break;
-        }
-
-        if(row < 3)
-        {
-
-            for(int i = 0; i < 3; i++)
-            {
-                dataFile >> cameraMatrix(row, i);
-            }
-            row++;
-        }
-        else
-        {
-            for(int i = 0; i < 8; i++)
-            {
-                dataFile >> distCoeffs[i];
-            }
-        }
-    }
-}
-
-int mainCV(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 	struct arg_str *arg_alg         = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), chroma]");
     struct arg_file  *arg_marker    = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
-    struct arg_file  *arg_ivideo    = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing");
+    struct arg_file  *arg_ivideo    = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing. Use 'firewire', possibly together with '-k', to select that source.");
     struct arg_file  *arg_calib     = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
 	struct arg_lit  *arg_maxprec    = arg_lit0("xX",    "max",          "if maximum precision should be the goal");
 	struct arg_lit  *arg_pos        = arg_lit0("pP",    "positions",    "if set, for each frame the position is output instead of success rate");
@@ -215,41 +160,44 @@ int mainCV(int argc, char* argv[])
 		print_positions = true;
 	}
 
+    std::string filename_short = "webcam0";
+    int cameraNumber = 0;
 
-    ImageFactory *factory = StreamFactory::GetImageFactory(std::string("OPENCV"));
+    if((arg_ivideo->count > 0))
+    {
+        filename_short = std::string(arg_ivideo->filename[0]);
+
+        int pos = filename_short.rfind('/');
+        if(pos != std::string::npos)
+        {
+            filename_short = filename_short.substr(pos+1);
+        }
+    }
+
+    if(arg_cam->count > 0) {
+        cameraNumber = arg_cam->ival[0];
+    }
+
+    bool useFirewire = (filename_short == "firewire");
+    std::string vconf = useFirewire ? "IEEE1394" : "OPENCV";
+    ImageFactory *factory = StreamFactory::GetImageFactory(vconf);
     if(factory == NULL)
     {
         std::cout << "Unable to create factory" << std::endl;
         return 1;
     }
 
-    std::string filename_short = "webcam0";
-    CVImageInitStruct sCVIni;
-    sCVIni.cameraIndex = 1;
+    CVImageInitStruct *sCVIni = new CVImageInitStruct();
+        
+    sCVIni->cameraIndex = cameraNumber;
+    sCVIni->filename = filename_short;
+    sCVIni->file = (arg_ivideo->count > 0);
 
-    if(arg_cam->count > 0) {
-        sCVIni.cameraIndex = arg_cam->ival[0];
-    }
-
-    sCVIni.file = (arg_ivideo->count > 0);
-    if(sCVIni.file)
-    {
-        sCVIni.filename = std::string(arg_ivideo->filename[0]);
-
-        int pos = sCVIni.filename.rfind('/');
-        if(pos == std::string::npos)
-        {
-            filename_short = sCVIni.filename;
-        } else {
-            filename_short = sCVIni.filename.substr(pos+1);
-        }
-    }
-
-	if (factory->init((void*)&sCVIni) == EXIT_FAILURE) {
-		std::cout << "unable to open video file or webcam device " << sCVIni.filename  << std::endl;
+	if (factory->init((void*)sCVIni) == EXIT_FAILURE) {
+		std::cout << "unable to open video file or webcam device " << sCVIni->filename  << std::endl;
 		return 1;
 	}
-
+    delete sCVIni;
 
     CvVideoWriter * write = NULL;
 
@@ -623,115 +571,60 @@ int mainCV(int argc, char* argv[])
     return 0;
 }
 
-int mainFW(int argc, char* argv[])
+char *loadFile(const char* filename)
 {
-    struct arg_file  *arg_marker    = arg_file1("mM", NULL, "marker", "the file containing the marker information");
-    struct arg_file  *arg_ivideo = arg_file0("iI", NULL, "input_video", "the input video or image used for processing -ignored for now");
-    struct arg_lit  *arg_help    = arg_lit0("h","help", "print this help and exit");
-    struct arg_end  *end     = arg_end(20);
-    void* argtable[] = {arg_marker, arg_ivideo, arg_help, end};
-    const char* progname = "detect";
-
-    /* verify the argtable[] entries were allocated sucessfully */
-    if (arg_nullcheck(argtable) != 0)
+    FILE *f = fopen(filename, "r");
+    if(!f)
     {
-        /* NULL entries were detected, some allocations must have failed */
-        printf("%s: insufficient memory\n",progname);
-        return 1;
+        return NULL;
+    }
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *str = new char[fsize + 1];
+    fread(str, fsize, 1, f);
+    fclose(f);
+
+    str[fsize] = '\0';
+    return str;
+}
+
+
+void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen::VectorXd &distCoeffs)
+{
+    std::fstream dataFile(cameraInfo, std::fstream::in);
+
+    if(dataFile.fail())
+    {
+        return;
     }
 
-    /* Parse the command line as defined by argtable[] */
-    int nerrors = arg_parse(argc,argv,argtable);
+    cameraMatrix.setZero();
+    distCoeffs.setZero();
 
-    /* special case: '--help' takes precedence over error reporting */
-    if (arg_help->count > 0)
+    int row = 0;
+    while(1)
     {
-        printf("Usage: %s", progname);
-        arg_print_syntax(stdout,argtable,"\n");
-        printf("This program demonstrates the use of the argtable2 library\n");
-        printf("for parsing command line arguments. Argtable accepts integers\n");
-        printf("in decimal (123), hexadecimal (0xff), octal (0o123) and binary\n");
-        printf("(0b101101) formats. Suffixes KB, MB and GB are also accepted.\n");
-        arg_print_glossary(stdout,argtable,"  %-25s %s\n");
-        return 0;
-    }
-
-
-    /* If the parser returned any errors then display them and exit */
-    if (nerrors > 0)
-    {
-        /* Display the error details contained in the arg_end struct.*/
-        arg_print_errors(stdout,end,progname);
-        printf("Try '%s --help' for more information.\n",progname);
-
-        return -1;
-    }
-
-
-    ImageFactory *factory = StreamFactory::GetImageFactory(std::string("IEEE1394"));
-    if(factory == NULL)
-    {
-        return 1;
-    }
-
-    if(factory->init(NULL) != EXIT_SUCCESS)
-    {
-        return -1;
-    }
-
-    //create an RGB detector
-    UMFDetector<3> *detector = new UMFDetector<3>(UMF_FLAG_SUBWINDOWS);
-    UMFDebug *dbg = UMFDSingleton::Instance();
-
-    dbg->setRenderer(NULL);
-    
-    ImageRGB *img = new ImageRGB(-1, -1, false, -1);
-    while(factory->getImage(img) == EXIT_SUCCESS)
-    {
-        ImageRGB *imgCopy = new ImageRGB(img->width, img->height, true, img->widthstep);
-        memcpy(imgCopy->data, img->data, img->widthstep*img->height);
-        detector->detect(img);
-
-        IplImage *cvimg = cvCreateImageHeader(cvSize(img->width, img->height), IPL_DEPTH_8U, img->channels);
-        cvimg->widthStep = imgCopy->widthstep;
-        cvimg->imageData = cvimg->imageDataOrigin = imgCopy->data;
-
-        cvCvtColor(cvimg, cvimg, CV_RGB2BGR);
-        cvShowImage("test", cvimg);
-        int key = cvWaitKey(20);
-        if((char) key == 'q')
-        {
-            cvReleaseImageHeader(&cvimg);
-            delete imgCopy;
+        if(dataFile.eof()){
             break;
         }
 
-        cvReleaseImageHeader(&cvimg);
-        delete imgCopy;
+        if(row < 3)
+        {
+
+            for(int i = 0; i < 3; i++)
+            {
+                dataFile >> cameraMatrix(row, i);
+            }
+            row++;
+        }
+        else
+        {
+            for(int i = 0; i < 8; i++)
+            {
+                dataFile >> distCoeffs[i];
+            }
+        }
     }
-
-    factory->release();
-
-#ifdef UMF_DEBUG_TIMING
-    std::vector< std::pair<double, std::string> > timing;
-    dbg->getUniqLog(timing);
-    for(std::vector< std::pair<double, std::string> >::iterator it = timing.begin(); it != timing.end(); it++)
-    {
-        std::cout << it->second << ":" << it->first << " ";
-    }
-    std::cout << std::endl;
-#endif
-
-    delete detector;
-    return 0;
 }
-
-int main(int argc, char* argv[])
-{
-    return mainCV(argc, argv);
-    //return mainFW(argc, argv);
-    return 0;
-}
-
-
-
