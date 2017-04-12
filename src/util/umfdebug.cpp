@@ -4,6 +4,7 @@
 #ifdef UMF_ANDROID
 #include <jni.h>
 #include <android/log.h>
+#include <type_traits>
 
 #define  LOG_TAG    "umf_gl"
 #define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
@@ -14,24 +15,31 @@
 
 namespace umf {
 
+template<typename ENUM> BitSet<ENUM>::BitSet() {
+    value = DEBUG_SHOW_NONE;
+}
+
 template<typename ENUM> void BitSet<ENUM>::toggleBit(ENUM d) {
-    value ^= d;
+    using T = typename std::underlying_type<ENUM>::type;
+    value = (ENUM)(static_cast<T>(value) ^ static_cast<T>(d));
 }
 
 template<typename ENUM> void BitSet<ENUM>::setBit(ENUM d) {
-    value |= d;
+    using T = typename std::underlying_type<ENUM>::type;
+    value = (ENUM)(static_cast<T>(value) | static_cast<T>(d));
 }
 
 template<typename ENUM> void BitSet<ENUM>::setBit(ENUM d, bool b) {
     if(b) {
-        value ^= d;
+        setBit(d);
     } else {
-        value &= !d;
+        clearBit(d);
     }
 }
 
 template<typename ENUM> void BitSet<ENUM>::clearBit(ENUM d) {
-    value &= !d;
+    using T = typename std::underlying_type<ENUM>::type;
+    value = (ENUM)(static_cast<T>(value) & ~ static_cast<T>(d));
 }
 
 template<typename ENUM> bool BitSet<ENUM>::isBitSet(ENUM d) {
@@ -123,5 +131,7 @@ void UMFDebug::logMsg(std::string msg)
 // (not sure why this is needed here, and why we can't just instantiate the class template by using: 
 // template class BitSet<DEBUG_SHOW>; )
 template bool BitSet<DEBUG_SHOW>::isBitSet(DEBUG_SHOW d);
+template void BitSet<DEBUG_SHOW>::clearBit(DEBUG_SHOW d);
+template void BitSet<DEBUG_SHOW>::toggleBit(DEBUG_SHOW d);
 
 }

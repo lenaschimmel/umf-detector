@@ -496,17 +496,54 @@ int Main::detect()
 		key = cvWaitKey(2);
 #endif
 
-        //int key = 'a';
-        if((char) key == 'q')
-        {
+        if((char) key == 'q') {
             break;
-        } else if((char) key == 's')
-        {
-            cvSaveImage("test/test.png", cvrenderer->getCVImg());
         }
 
-        if(writeFrames)
-        {
+        UMFDebug *dbg = UMFDSingleton::Instance();
+        switch((char) key) {
+            case 's':
+                cvSaveImage("test/test.png", cvrenderer->getCVImg());
+                break;
+            case '0':
+                dbg->debugShowBits.clearBit(DEBUG_SHOW_ALL);
+                break;
+            case '1':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_EDGES_BIT);
+                break;
+            case '2':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_FILTERED_LINES_BIT);
+                break;
+            case '3':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_EDGELS_BIT);
+                break;
+            case '4':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_GRID_BIT);
+                break;
+            case '5':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_FIELD_CENTERS_BIT);
+                break;
+            case '6':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_DIRECTIONS_BIT);
+                break;
+            case '7':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_GROUPS_BIT);
+                break;
+            case '8':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_CORNERS_BIT);
+                break;
+            case '9':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_CORRESPONDENCES_BIT);
+                break;
+            case 'a':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_BOX_BIT);
+                break;
+            case 'b':
+                dbg->debugShowBits.toggleBit(DEBUG_SHOW_TRACKING_BIT);
+                break;
+        }
+
+        if(writeFrames) {
             char buf[1024];
             int p[3] = { CV_IMWRITE_PNG_COMPRESSION, 9, 0 };
             sprintf(buf, "%s/frame_%d.png", outpath.c_str(), frameCounter);

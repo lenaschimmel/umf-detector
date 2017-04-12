@@ -22,6 +22,7 @@ namespace umf
 {
 
 enum DEBUG_SHOW {
+    DEBUG_SHOW_NONE = 0x0,
     DEBUG_SHOW_DIRECTIONS_BIT = 0x1,
     DEBUG_SHOW_FIELD_CENTERS_BIT = 0x2,
     DEBUG_SHOW_EDGES_BIT = 0x4,
@@ -32,7 +33,9 @@ enum DEBUG_SHOW {
     DEBUG_SHOW_CORRESPONDENCES_BIT = 0x80,
     DEBUG_SHOW_BOX_BIT = 0x100,
     DEBUG_SHOW_TRACKING_BIT = 0x200,
-    DEBUG_SHOW_EDGELS_BIT = 0x400
+    DEBUG_SHOW_EDGELS_BIT = 0x400,
+    DEBUG_SHOW_LAST = DEBUG_SHOW_EDGELS_BIT,
+    DEBUG_SHOW_ALL = DEBUG_SHOW_EDGELS_BIT * 2 - 1
 };
 
 /**
@@ -108,6 +111,7 @@ public:
 template<typename ENUM>
 class BitSet {
 public:
+    BitSet();
     void toggleBit(ENUM d);
     void setBit(ENUM d);
     void setBit(ENUM d, bool b);
