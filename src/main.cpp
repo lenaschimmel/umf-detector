@@ -26,6 +26,7 @@
 #include "util/homography2d.h"
 #include "util/chromakey.h"
 #include "util/calibration.h"
+#include "util/successlogger.h"
 
 #include "chroma.hpp"
 #include "util/native_x.h"
@@ -80,174 +81,67 @@ using namespace umf;
 #define M_PI_4 0.78539816339744830961566084581988
 #endif
 
+char *loadFile(const char* filename);
+void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen::VectorXd &distCoeffs);
 
-class SuccessLogger {
+class Main {
 public:
-    SuccessLogger(float fps = 20) {
-        this->current = 1;
-        this->onepfps = 1000.0f/fps;
-        this->detectSum = 0;
-    }
-    
-    void detectStart()
-    {
-        this->timer.start();
-    }
-
-    void addFailure()
-    {
-        //std::cout << "Failure." << std::endl;
-        this->detectSum += (std::max)(0.0, this->timer.stop() - this->onepfps);
-    }
-    
-    void addSuccess(int frameId)
-    {
-        //std::cout << "Success." << std::endl;
-		this->detectSum += this->timer.stop();
-        int diff = frameId - current - 1;
-        //frameDiffs.push_back(diff*onepfps + detectSum);
-        frameDiffs.push_back(diff);
-        this->detectSum = 0;
-        this->current = frameId;
-    }
-
-    void store(std::string outDir, std::string filename_short);
+    int run(int argc, char* argv[]);
 
 private:
-    std::vector<int> frameDiffs;
-    Timer timer;
-    float onepfps;
-    int current;
-    double detectSum;
+    template <int NCHAN> int detect();
+
+    int detector_flags;
+    ImageFactory *factory;
+    Eigen::Matrix3d cameraMatrix;
+    Eigen::VectorXd distCoeffs;
+    struct arg_str *arg_alg;
+    struct arg_file  *arg_marker;
+    struct arg_file  *arg_ivideo;
+    struct arg_file  *arg_calib;
+	struct arg_lit  *arg_maxprec;
+	struct arg_lit  *arg_pos;
+    struct arg_lit  *arg_help;
+    struct arg_int *arg_cam;
+    struct arg_str *arg_path;
+    struct arg_lit  *arg_recalib;
+    struct arg_lit  *arg_outvideo;
+    struct arg_lit  *arg_outframes;
+    struct arg_end  *end;
+
+    bool max_precision;
+    bool print_positions;
+    bool is_chroma;
+    bool is_rgb;
+    bool writeVideo;
+	bool writeFrames;
+	bool calibrate;
+    std::string outpath;
+    Calibration* calibCV;
+    CvVideoWriter * write;
 };
 
-void SuccessLogger::store(std::string outDir, std::string filename_short)
+int main(int argc, char* argv[])
 {
-    std::string diff_name = outDir + filename_short + std::string(".diffs.txt");
-    std::sort(this->frameDiffs.begin(), this->frameDiffs.end());
-    std::fstream successOut(diff_name.c_str(), std::fstream::out);
-    double fullSize = this->frameDiffs.size();
-    int index = 0;
-    for(std::vector<int>::iterator it = this->frameDiffs.begin(); it != this->frameDiffs.end(); it++, index++)
-    {
-        successOut << *it << " " << index/fullSize << std::endl;
-    }
-    successOut.close();
-
-    std::fstream successOutPlot((diff_name + std::string(".p")).c_str(), std::fstream::out);
-
-    successOutPlot << "set key right bottom \n";
-    successOutPlot << "set auto\n";
-    successOutPlot << "\n";
-
-
-    successOutPlot << "set style line 1 lt 1 lw 1 lc rgb \"red\"\n";
-    successOutPlot << "set style line 2 lt 2 lw 1 lc rgb \"green\"\n";
-    successOutPlot << "set style line 3 lt 3 lw 1 lc rgb \"blue\"\n";
-    successOutPlot << "set style line 4 lt 4 lw 1 lc rgb \"purple\"\n";
-    successOutPlot << "set style line 5 lt 5 lw 1 lc rgb \"cyan\"\n";
-    successOutPlot << "set style line 6 lt 6 lw 1 lc rgb \"orange\"\n";
-
-    successOutPlot << "set lmargin 5.0\n";
-    successOutPlot << "set bmargin 2.5\n";
-    successOutPlot << "set rmargin 0.5\n";
-    successOutPlot << "set tmargin 0.5\n";
-
-    successOutPlot << "\n";
-    successOutPlot << "set xrange[0:20]\n";
-    successOutPlot << "set yrange[0: 1]\n";
-    successOutPlot << "set xtics 5\n";
-
-    successOutPlot << "\n";
-    successOutPlot << "# Make some suitable labels.\n";
-    //successOutPlot << "set notitle\n";
-    successOutPlot << "set xlabel \"Missed frame count\" offset 0.0, 0.5\n";
-    successOutPlot << "set ylabel \"Probability distribution\" offset 2.7, 0.0\n";
-    successOutPlot << "set terminal postscript eps enhanced color \"Times-Roman\" 25\n";
-    successOutPlot << "set output '| epstopdf --filter --outfile=" << (diff_name + std::string(".pdf")) << "'\n";
-
-
-    successOutPlot << " plot '" << diff_name << "' using 1:2 title '"<< filename_short << "' with lines\n";
-
-    successOutPlot << "\n";
-    successOutPlot.close();
+    Main m;
+    m.run(argc, argv);
 }
 
-
-
-char *loadFile(const char* filename)
+int Main::run(int argc, char* argv[])
 {
-    FILE *f = fopen(filename, "r");
-    if(!f)
-    {
-        return NULL;
-    }
-    fseek(f, 0, SEEK_END);
-    long fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char *str = new char[fsize + 1];
-    fread(str, fsize, 1, f);
-    fclose(f);
-
-    str[fsize] = '\0';
-    return str;
-}
-
-
-void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen::VectorXd &distCoeffs)
-{
-    std::fstream dataFile(cameraInfo, std::fstream::in);
-
-    if(dataFile.fail())
-    {
-        return;
-    }
-
-    cameraMatrix.setZero();
-    distCoeffs.setZero();
-
-    int row = 0;
-    while(1)
-    {
-        if(dataFile.eof()){
-            break;
-        }
-
-        if(row < 3)
-        {
-
-            for(int i = 0; i < 3; i++)
-            {
-                dataFile >> cameraMatrix(row, i);
-            }
-            row++;
-        }
-        else
-        {
-            for(int i = 0; i < 8; i++)
-            {
-                dataFile >> distCoeffs[i];
-            }
-        }
-    }
-}
-
-int mainCV(int argc, char* argv[])
-{
-	struct arg_str *arg_alg         = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), chroma]");
-    struct arg_file  *arg_marker    = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
-    struct arg_file  *arg_ivideo    = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing");
-    struct arg_file  *arg_calib     = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
-	struct arg_lit  *arg_maxprec    = arg_lit0("xX",    "max",          "if maximum precision should be the goal");
-	struct arg_lit  *arg_pos        = arg_lit0("pP",    "positions",    "if set, for each frame the position is output instead of success rate");
-    struct arg_lit  *arg_help       = arg_lit0("h",     "help",         "print this help and exit");
-    struct arg_int *arg_cam         = arg_int0("kK",    "camera",       NULL, "the index of the webcam to use, starting from 0");
-    struct arg_str *arg_path        = arg_str0("dD",    "dir",          "output_path", "the relative directory to store from the current location without the / symbol");
-    struct arg_lit  *arg_recalib    = arg_lit0("rR",    "recalib",      "perform a re-calibration for the camera. This will halt the program after a while.");
-    struct arg_lit  *arg_outvideo   = arg_lit0(NULL,    "ov,outvideo",  "Record the whole process into ./output.avi");
-    struct arg_lit  *arg_outframes  = arg_lit0(NULL,    "of,outframe",  "Record individual frames.");
-    struct arg_end  *end            = arg_end(20);
+	arg_alg        = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), rgb, chroma]");
+    arg_marker     = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
+    arg_ivideo     = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing. Use 'firewire', possibly together with '-k', to select that source.");
+    arg_calib      = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
+	arg_maxprec    = arg_lit0("xX",    "max",          "if maximum precision should be the goal");
+	arg_pos        = arg_lit0("pP",    "positions",    "if set, for each frame the position is output instead of success rate");
+    arg_help       = arg_lit0("h",     "help",         "print this help and exit");
+    arg_cam        = arg_int0("kK",    "camera",       NULL, "the index of the webcam to use, starting from 0");
+    arg_path       = arg_str0("dD",    "dir",          "output_path", "the relative directory to store from the current location without the / symbol");
+    arg_recalib    = arg_lit0("rR",    "recalib",      "perform a re-calibration for the camera. This will halt the program after a while.");
+    arg_outvideo   = arg_lit0(NULL,    "ov,outvideo",  "Record the whole process into ./output.avi");
+    arg_outframes  = arg_lit0(NULL,    "of,outframe",  "Record individual frames.");
+    end            = arg_end(20);
     void* argtable[] = {arg_marker, arg_ivideo, arg_calib, arg_help, arg_path, arg_alg, arg_maxprec, arg_pos, arg_cam, arg_recalib, arg_outvideo, arg_outframes, end};
     const char* progname = "detect";
 
@@ -285,74 +179,80 @@ int mainCV(int argc, char* argv[])
 
     cout << "Using OpenCV v" << CV_VERSION << "\n" << endl;
 
-    std::string outpath(".");
+    outpath = ".";
     if(arg_path->count > 0)
     {
         outpath = std::string(arg_path->sval[0]);
     }
 
-	bool is_chroma = false;
+	is_chroma = false;
 	if (arg_alg->count > 0) {
 		std::string algorithm = std::string(arg_alg->sval[0]);
 		if (algorithm.compare("chroma") == 0) {
 			is_chroma = true;
+		}		
+        if (algorithm.compare("rgb") == 0) {
+			is_rgb = true;
 		}
 	}
 
-	bool max_precision = false;
+	max_precision = false;
 	if (arg_maxprec->count > 0) {
 		max_precision = true;
 	}
 
-	bool print_positions = false;
+	print_positions = false;
 	if (arg_pos->count > 0) {
 		print_positions = true;
 	}
 
+    std::string filename_short = "webcam0";
+    int cameraNumber = 0;
 
-    ImageFactory *factory = StreamFactory::GetImageFactory(std::string("OPENCV"));
+    if((arg_ivideo->count > 0))
+    {
+        filename_short = std::string(arg_ivideo->filename[0]);
+
+        int pos = filename_short.rfind('/');
+        if(pos != std::string::npos)
+        {
+            filename_short = filename_short.substr(pos+1);
+        }
+    }
+
+    if(arg_cam->count > 0) {
+        cameraNumber = arg_cam->ival[0];
+    }
+
+    bool useFirewire = (filename_short == "firewire");
+    std::string vconf = useFirewire ? "IEEE1394" : "OPENCV";
+    factory = StreamFactory::GetImageFactory(vconf);
     if(factory == NULL)
     {
         std::cout << "Unable to create factory" << std::endl;
         return 1;
     }
 
-    std::string filename_short = "webcam0";
-    CVImageInitStruct sCVIni;
-    sCVIni.cameraIndex = 1;
+    CVImageInitStruct *sCVIni = new CVImageInitStruct();
+        
+    sCVIni->cameraIndex = cameraNumber;
+    sCVIni->filename = filename_short;
+    sCVIni->file = (arg_ivideo->count > 0);
 
-    if(arg_cam->count > 0) {
-        sCVIni.cameraIndex = arg_cam->ival[0];
-    }
-
-    sCVIni.file = (arg_ivideo->count > 0);
-    if(sCVIni.file)
-    {
-        sCVIni.filename = std::string(arg_ivideo->filename[0]);
-
-        int pos = sCVIni.filename.rfind('/');
-        if(pos == std::string::npos)
-        {
-            filename_short = sCVIni.filename;
-        } else {
-            filename_short = sCVIni.filename.substr(pos+1);
-        }
-    }
-
-	if (factory->init((void*)&sCVIni) == EXIT_FAILURE) {
-		std::cout << "unable to open video file or webcam device " << sCVIni.filename  << std::endl;
+	if (factory->init((void*)sCVIni) == EXIT_FAILURE) {
+		std::cout << "unable to open video file or webcam device " << sCVIni->filename  << std::endl;
 		return 1;
 	}
+    delete sCVIni;
 
-
-    CvVideoWriter * write = NULL;
+    write = NULL;
 
     float fps = factory->getFrameCount();
     if(fps > 200 || fps == 0) fps = 30;
 
-	const bool writeVideo = (arg_outvideo->count > 0) ;
-	const bool writeFrames = (arg_outframes->count > 0) ;
-	const bool calibrate = (arg_recalib->count > 0) ;
+	writeVideo = (arg_outvideo->count > 0) ;
+	writeFrames = (arg_outframes->count > 0) ;
+	calibrate = (arg_recalib->count > 0) ;
     if(writeVideo)
     {
 		char videobuf[1024];
@@ -364,7 +264,7 @@ int mainCV(int argc, char* argv[])
 
 
     //create an RGB detector
-	int detector_flags = /*UMF_FLAG_ITER_REFINE |*/ UMF_FLAG_SUBWINDOWS | UMF_FLAG_SUBPIXEL;// | UMF_FLAG_TRACK_POS;
+	detector_flags = /*UMF_FLAG_ITER_REFINE |*/ UMF_FLAG_SUBWINDOWS | UMF_FLAG_SUBPIXEL;// | UMF_FLAG_TRACK_POS;
 	if (is_chroma) {
 		detector_flags |= UMF_FLAG_CHROMAKEY;
 	}
@@ -373,26 +273,18 @@ int mainCV(int argc, char* argv[])
 	}
 
 
-    UMFDetector<1> *detector = new UMFDetector<1>(detector_flags); 
-    detector->setTrackingFlags(0/*UMF_TRACK_MARKER | UMF_TRACK_SCANLINES | UMF_TRACK_CORNERS*/);
-
-	if (factory->getHeight() > 719) {
-		detector->setSubWindowVerticalCount(3);
-	}
-
-
 	float fovy = 49.f;// 47.43f;
     //float fov = 28.05f*static_cast<float>(M_PI)/180.0f;
     //float fov = 30.0f*static_cast<float>(M_PI)/180.0f;
 	float fov = fovy*static_cast<float>(M_PI) / 180.0f;
-    Eigen::Matrix3d cameraMatrix;
+    
     Eigen::Vector2f imgSize(factory->getWidth(), factory->getHeight());
     float focal = imgSize[1]/(2.0f*tanf(fov/2.0f));
     cameraMatrix << focal, 0, imgSize[0]/2,
             0, focal, imgSize[1]/2,
             0, 0, 1;
 
-    Eigen::VectorXd distCoeffs(8);
+    distCoeffs = Eigen::VectorXd(8);
     distCoeffs << 0, 0, 0, 0, 0, 0, 0, 0;
 
     if(arg_calib->count > 0)
@@ -400,7 +292,24 @@ int mainCV(int argc, char* argv[])
         loadCalibInfo(arg_calib->filename[0], cameraMatrix, distCoeffs);
     }
 
-	Calibration* calibCV = new Calibration(imgSize(0), imgSize(1), fovy);
+	calibCV = new Calibration(imgSize(0), imgSize(1), fovy);
+
+    if (is_rgb) {
+        return detect<3>();
+    } else {
+        return detect<1>();
+    }
+}
+
+template <int NCHAN>
+int Main::detect() 
+{
+    UMFDetector<NCHAN> *detector = new UMFDetector<NCHAN>(detector_flags); 
+    detector->setTrackingFlags(0/*UMF_TRACK_MARKER | UMF_TRACK_SCANLINES | UMF_TRACK_CORNERS*/);
+
+	if (factory->getHeight() > 719) {
+		detector->setSubWindowVerticalCount(3);
+	}
 
     detector->model.setCameraProperties(cameraMatrix, distCoeffs);
 	detector->model.setPnPFlags(PNP_FLAG_COMPUTE_CAMERA | PNP_FLAG_GL_PROJECTION_MV | PNP_FLAG_SWAP_Y | PNP_FLAG_RIGHT_HANDED | PNP_FLAG_FILTER_REPR /* | PNP_FLAG_LOOK_Z_POSITIVE*/);
@@ -497,7 +406,11 @@ int mainCV(int argc, char* argv[])
 
 		slogger.detectStart();
         try{
-            success = detector->update(imgGray, -1.f);
+            if(NCHAN == 1) {
+                success = reinterpret_cast<UMFDetector<1>*>(detector)->update(imgGray, -1.f);
+            } else {
+                success = reinterpret_cast<UMFDetector<3>*>(detector)->update(img, -1.f);
+            }
         } catch(DetectionTimeoutException &)
         {
             std::cout << "Timed out" << std::endl;
@@ -717,115 +630,60 @@ int mainCV(int argc, char* argv[])
     return 0;
 }
 
-int mainFW(int argc, char* argv[])
+char *loadFile(const char* filename)
 {
-    struct arg_file  *arg_marker    = arg_file1("mM", NULL, "marker", "the file containing the marker information");
-    struct arg_file  *arg_ivideo = arg_file0("iI", NULL, "input_video", "the input video or image used for processing -ignored for now");
-    struct arg_lit  *arg_help    = arg_lit0("h","help", "print this help and exit");
-    struct arg_end  *end     = arg_end(20);
-    void* argtable[] = {arg_marker, arg_ivideo, arg_help, end};
-    const char* progname = "detect";
-
-    /* verify the argtable[] entries were allocated sucessfully */
-    if (arg_nullcheck(argtable) != 0)
+    FILE *f = fopen(filename, "r");
+    if(!f)
     {
-        /* NULL entries were detected, some allocations must have failed */
-        printf("%s: insufficient memory\n",progname);
-        return 1;
+        return NULL;
+    }
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *str = new char[fsize + 1];
+    fread(str, fsize, 1, f);
+    fclose(f);
+
+    str[fsize] = '\0';
+    return str;
+}
+
+
+void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen::VectorXd &distCoeffs)
+{
+    std::fstream dataFile(cameraInfo, std::fstream::in);
+
+    if(dataFile.fail())
+    {
+        return;
     }
 
-    /* Parse the command line as defined by argtable[] */
-    int nerrors = arg_parse(argc,argv,argtable);
+    cameraMatrix.setZero();
+    distCoeffs.setZero();
 
-    /* special case: '--help' takes precedence over error reporting */
-    if (arg_help->count > 0)
+    int row = 0;
+    while(1)
     {
-        printf("Usage: %s", progname);
-        arg_print_syntax(stdout,argtable,"\n");
-        printf("This program demonstrates the use of the argtable2 library\n");
-        printf("for parsing command line arguments. Argtable accepts integers\n");
-        printf("in decimal (123), hexadecimal (0xff), octal (0o123) and binary\n");
-        printf("(0b101101) formats. Suffixes KB, MB and GB are also accepted.\n");
-        arg_print_glossary(stdout,argtable,"  %-25s %s\n");
-        return 0;
-    }
-
-
-    /* If the parser returned any errors then display them and exit */
-    if (nerrors > 0)
-    {
-        /* Display the error details contained in the arg_end struct.*/
-        arg_print_errors(stdout,end,progname);
-        printf("Try '%s --help' for more information.\n",progname);
-
-        return -1;
-    }
-
-
-    ImageFactory *factory = StreamFactory::GetImageFactory(std::string("IEEE1394"));
-    if(factory == NULL)
-    {
-        return 1;
-    }
-
-    if(factory->init(NULL) != EXIT_SUCCESS)
-    {
-        return -1;
-    }
-
-    //create an RGB detector
-    UMFDetector<3> *detector = new UMFDetector<3>(UMF_FLAG_SUBWINDOWS);
-    UMFDebug *dbg = UMFDSingleton::Instance();
-
-    dbg->setRenderer(NULL);
-    
-    ImageRGB *img = new ImageRGB(-1, -1, false, -1);
-    while(factory->getImage(img) == EXIT_SUCCESS)
-    {
-        ImageRGB *imgCopy = new ImageRGB(img->width, img->height, true, img->widthstep);
-        memcpy(imgCopy->data, img->data, img->widthstep*img->height);
-        detector->detect(img);
-
-        IplImage *cvimg = cvCreateImageHeader(cvSize(img->width, img->height), IPL_DEPTH_8U, img->channels);
-        cvimg->widthStep = imgCopy->widthstep;
-        cvimg->imageData = cvimg->imageDataOrigin = imgCopy->data;
-
-        cvCvtColor(cvimg, cvimg, CV_RGB2BGR);
-        cvShowImage("test", cvimg);
-        int key = cvWaitKey(20);
-        if((char) key == 'q')
-        {
-            cvReleaseImageHeader(&cvimg);
-            delete imgCopy;
+        if(dataFile.eof()){
             break;
         }
 
-        cvReleaseImageHeader(&cvimg);
-        delete imgCopy;
+        if(row < 3)
+        {
+
+            for(int i = 0; i < 3; i++)
+            {
+                dataFile >> cameraMatrix(row, i);
+            }
+            row++;
+        }
+        else
+        {
+            for(int i = 0; i < 8; i++)
+            {
+                dataFile >> distCoeffs[i];
+            }
+        }
     }
-
-    factory->release();
-
-#ifdef UMF_DEBUG_TIMING
-    std::vector< std::pair<double, std::string> > timing;
-    dbg->getUniqLog(timing);
-    for(std::vector< std::pair<double, std::string> >::iterator it = timing.begin(); it != timing.end(); it++)
-    {
-        std::cout << it->second << ":" << it->first << " ";
-    }
-    std::cout << std::endl;
-#endif
-
-    delete detector;
-    return 0;
 }
-
-int main(int argc, char* argv[])
-{
-    return mainCV(argc, argv);
-    //return mainFW(argc, argv);
-    return 0;
-}
-
-
-

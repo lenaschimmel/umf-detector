@@ -48,7 +48,7 @@
 
 
 #ifndef HAVE_FIREWIRE_LIB
-//#define HAVE_FIREWIRE_LIB
+#define HAVE_FIREWIRE_LIB
 #endif
 
 #define UMF_DEBUG

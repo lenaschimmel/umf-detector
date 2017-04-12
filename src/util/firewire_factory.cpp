@@ -67,7 +67,7 @@ static const char* framerateMapping[DC1394_FRAMERATE_NUM] = {
  *
  * docs see here: http://damien.douxchamps.net/ieee1394/libdc1394/
  */
-int FirewireFactory::init(void *) {
+int FirewireFactory::init(void * data) {
 
     dc1394camera_list_t * list;
     dc1394error_t err;
@@ -88,6 +88,17 @@ int FirewireFactory::init(void *) {
 
     if (list->num == 0) {
         dc1394_log_error("No cameras found");
+        return EXIT_FAILURE;
+    }
+
+    int cameraNum = 0;
+    if(data) {
+        CVImageInitStruct *p = (CVImageInitStruct *) data;    
+        cameraNum = p->cameraIndex;
+    }
+
+    if (list->num <= cameraNum) {
+        dc1394_log_error("No cameras with given index %d, only have %d cameras.", cameraNum, list->num);
         return EXIT_FAILURE;
     }
 

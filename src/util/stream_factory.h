@@ -9,6 +9,15 @@ using namespace std;
 
 namespace umf {
 
+typedef struct
+{
+    bool file;
+    std::string filename;
+    int cameraIndex;
+	int width;
+	int height;
+} CVImageInitStruct;
+
 // Abstract base class for accessing images
 class UMF ImageFactory {
 public:
