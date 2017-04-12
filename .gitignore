@@ -44,4 +44,10 @@ settings.json
 
 # Program output
 *.avi
-camera_calib.txt
+calib/**
+
+# Patterns
+patterns
+
+# tmp files
+*~

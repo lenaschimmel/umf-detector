@@ -1,6 +1,6 @@
 
 LIBS= -lm -largtable2
-CXXFLAGS= -fPIC -I. -I./srcChroma -I./ext/include -O3 -Wall -pedantic -std=c++11
+CXXFLAGS= -fPIC -I. -I./srcChroma -I./ext/include -g -Og -Wall -pedantic -std=c++11
 #CXXFLAGS= -fPIC -g -ggdb -I. -Wall -W -lm -std=c++11
 RM=rm -f
 DEMOFLAGS= -lGL -lGLEW `sdl-config --cflags --libs`
