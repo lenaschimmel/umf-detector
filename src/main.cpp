@@ -84,21 +84,63 @@ using namespace umf;
 char *loadFile(const char* filename);
 void loadCalibInfo(const char* cameraInfo, Eigen::Matrix3d &cameraMatrix, Eigen::VectorXd &distCoeffs);
 
+class Main {
+public:
+    int run(int argc, char* argv[]);
+
+private:
+    int detect();
+
+    int detector_flags;
+    ImageFactory *factory;
+    Eigen::Matrix3d cameraMatrix;
+    Eigen::VectorXd distCoeffs;
+    struct arg_str *arg_alg;
+    struct arg_file  *arg_marker;
+    struct arg_file  *arg_ivideo;
+    struct arg_file  *arg_calib;
+	struct arg_lit  *arg_maxprec;
+	struct arg_lit  *arg_pos;
+    struct arg_lit  *arg_help;
+    struct arg_int *arg_cam;
+    struct arg_str *arg_path;
+    struct arg_lit  *arg_recalib;
+    struct arg_lit  *arg_outvideo;
+    struct arg_lit  *arg_outframes;
+    struct arg_end  *end;
+
+    bool max_precision;
+    bool print_positions;
+    bool is_chroma;
+    bool writeVideo;
+	bool writeFrames;
+	bool calibrate;
+    std::string outpath;
+    Calibration* calibCV;
+    CvVideoWriter * write;
+};
+
 int main(int argc, char* argv[])
 {
-	struct arg_str *arg_alg         = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), chroma]");
-    struct arg_file  *arg_marker    = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
-    struct arg_file  *arg_ivideo    = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing. Use 'firewire', possibly together with '-k', to select that source.");
-    struct arg_file  *arg_calib     = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
-	struct arg_lit  *arg_maxprec    = arg_lit0("xX",    "max",          "if maximum precision should be the goal");
-	struct arg_lit  *arg_pos        = arg_lit0("pP",    "positions",    "if set, for each frame the position is output instead of success rate");
-    struct arg_lit  *arg_help       = arg_lit0("h",     "help",         "print this help and exit");
-    struct arg_int *arg_cam         = arg_int0("kK",    "camera",       NULL, "the index of the webcam to use, starting from 0");
-    struct arg_str *arg_path        = arg_str0("dD",    "dir",          "output_path", "the relative directory to store from the current location without the / symbol");
-    struct arg_lit  *arg_recalib    = arg_lit0("rR",    "recalib",      "perform a re-calibration for the camera. This will halt the program after a while.");
-    struct arg_lit  *arg_outvideo   = arg_lit0(NULL,    "ov,outvideo",  "Record the whole process into ./output.avi");
-    struct arg_lit  *arg_outframes  = arg_lit0(NULL,    "of,outframe",  "Record individual frames.");
-    struct arg_end  *end            = arg_end(20);
+    Main m;
+    m.run(argc, argv);
+}
+
+int Main::run(int argc, char* argv[])
+{
+	arg_alg         = arg_str0("aA",    "alg",          "algorithm", "Choose the algorithm [sog (default), chroma]");
+    arg_marker    = arg_file1("mM",   NULL,           "marker", "the file containing the marker information");
+    arg_ivideo    = arg_file0("iI",   NULL,           "input_video", "the input video or image used for processing. Use 'firewire', possibly together with '-k', to select that source.");
+    arg_calib     = arg_file0("cC",   NULL,           "calib", "existing calibration data for opencv");
+	arg_maxprec    = arg_lit0("xX",    "max",          "if maximum precision should be the goal");
+	arg_pos        = arg_lit0("pP",    "positions",    "if set, for each frame the position is output instead of success rate");
+    arg_help       = arg_lit0("h",     "help",         "print this help and exit");
+    arg_cam         = arg_int0("kK",    "camera",       NULL, "the index of the webcam to use, starting from 0");
+    arg_path        = arg_str0("dD",    "dir",          "output_path", "the relative directory to store from the current location without the / symbol");
+    arg_recalib    = arg_lit0("rR",    "recalib",      "perform a re-calibration for the camera. This will halt the program after a while.");
+    arg_outvideo   = arg_lit0(NULL,    "ov,outvideo",  "Record the whole process into ./output.avi");
+    arg_outframes  = arg_lit0(NULL,    "of,outframe",  "Record individual frames.");
+    end            = arg_end(20);
     void* argtable[] = {arg_marker, arg_ivideo, arg_calib, arg_help, arg_path, arg_alg, arg_maxprec, arg_pos, arg_cam, arg_recalib, arg_outvideo, arg_outframes, end};
     const char* progname = "detect";
 
@@ -136,13 +178,13 @@ int main(int argc, char* argv[])
 
     cout << "Using OpenCV v" << CV_VERSION << "\n" << endl;
 
-    std::string outpath(".");
+    outpath = ".";
     if(arg_path->count > 0)
     {
         outpath = std::string(arg_path->sval[0]);
     }
 
-	bool is_chroma = false;
+	is_chroma = false;
 	if (arg_alg->count > 0) {
 		std::string algorithm = std::string(arg_alg->sval[0]);
 		if (algorithm.compare("chroma") == 0) {
@@ -150,12 +192,12 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	bool max_precision = false;
+	max_precision = false;
 	if (arg_maxprec->count > 0) {
 		max_precision = true;
 	}
 
-	bool print_positions = false;
+	print_positions = false;
 	if (arg_pos->count > 0) {
 		print_positions = true;
 	}
@@ -180,7 +222,7 @@ int main(int argc, char* argv[])
 
     bool useFirewire = (filename_short == "firewire");
     std::string vconf = useFirewire ? "IEEE1394" : "OPENCV";
-    ImageFactory *factory = StreamFactory::GetImageFactory(vconf);
+    factory = StreamFactory::GetImageFactory(vconf);
     if(factory == NULL)
     {
         std::cout << "Unable to create factory" << std::endl;
@@ -199,14 +241,14 @@ int main(int argc, char* argv[])
 	}
     delete sCVIni;
 
-    CvVideoWriter * write = NULL;
+    write = NULL;
 
     float fps = factory->getFrameCount();
     if(fps > 200 || fps == 0) fps = 30;
 
-	const bool writeVideo = (arg_outvideo->count > 0) ;
-	const bool writeFrames = (arg_outframes->count > 0) ;
-	const bool calibrate = (arg_recalib->count > 0) ;
+	writeVideo = (arg_outvideo->count > 0) ;
+	writeFrames = (arg_outframes->count > 0) ;
+	calibrate = (arg_recalib->count > 0) ;
     if(writeVideo)
     {
 		char videobuf[1024];
@@ -218,7 +260,7 @@ int main(int argc, char* argv[])
 
 
     //create an RGB detector
-	int detector_flags = /*UMF_FLAG_ITER_REFINE |*/ UMF_FLAG_SUBWINDOWS | UMF_FLAG_SUBPIXEL;// | UMF_FLAG_TRACK_POS;
+	detector_flags = /*UMF_FLAG_ITER_REFINE |*/ UMF_FLAG_SUBWINDOWS | UMF_FLAG_SUBPIXEL;// | UMF_FLAG_TRACK_POS;
 	if (is_chroma) {
 		detector_flags |= UMF_FLAG_CHROMAKEY;
 	}
@@ -227,26 +269,18 @@ int main(int argc, char* argv[])
 	}
 
 
-    UMFDetector<1> *detector = new UMFDetector<1>(detector_flags); 
-    detector->setTrackingFlags(0/*UMF_TRACK_MARKER | UMF_TRACK_SCANLINES | UMF_TRACK_CORNERS*/);
-
-	if (factory->getHeight() > 719) {
-		detector->setSubWindowVerticalCount(3);
-	}
-
-
 	float fovy = 49.f;// 47.43f;
     //float fov = 28.05f*static_cast<float>(M_PI)/180.0f;
     //float fov = 30.0f*static_cast<float>(M_PI)/180.0f;
 	float fov = fovy*static_cast<float>(M_PI) / 180.0f;
-    Eigen::Matrix3d cameraMatrix;
+    
     Eigen::Vector2f imgSize(factory->getWidth(), factory->getHeight());
     float focal = imgSize[1]/(2.0f*tanf(fov/2.0f));
     cameraMatrix << focal, 0, imgSize[0]/2,
             0, focal, imgSize[1]/2,
             0, 0, 1;
 
-    Eigen::VectorXd distCoeffs(8);
+    distCoeffs = Eigen::VectorXd(8);
     distCoeffs << 0, 0, 0, 0, 0, 0, 0, 0;
 
     if(arg_calib->count > 0)
@@ -254,7 +288,19 @@ int main(int argc, char* argv[])
         loadCalibInfo(arg_calib->filename[0], cameraMatrix, distCoeffs);
     }
 
-	Calibration* calibCV = new Calibration(imgSize(0), imgSize(1), fovy);
+	calibCV = new Calibration(imgSize(0), imgSize(1), fovy);
+
+    return detect();
+}
+
+int Main::detect() 
+{
+    UMFDetector<1> *detector = new UMFDetector<1>(detector_flags); 
+    detector->setTrackingFlags(0/*UMF_TRACK_MARKER | UMF_TRACK_SCANLINES | UMF_TRACK_CORNERS*/);
+
+	if (factory->getHeight() > 719) {
+		detector->setSubWindowVerticalCount(3);
+	}
 
     detector->model.setCameraProperties(cameraMatrix, distCoeffs);
 	detector->model.setPnPFlags(PNP_FLAG_COMPUTE_CAMERA | PNP_FLAG_GL_PROJECTION_MV | PNP_FLAG_SWAP_Y | PNP_FLAG_RIGHT_HANDED | PNP_FLAG_FILTER_REPR /* | PNP_FLAG_LOOK_Z_POSITIVE*/);
