@@ -1,7 +1,7 @@
 # UMF detector library
 ## Fork Info
 
-_Forked from [this repo](https://github.com/szist/umf-detector) to add some features and general experimentation._
+_Forked from [this repo](https://github.com/szist/umf-detector) to add some features and general experimentation. See [the (outdated) project website](http://www.fit.vutbr.cz/research/groups/graph/MF/) for more explanation._
 
 Current enhancements in this fork:
 
@@ -12,6 +12,8 @@ Current enhancements in this fork:
 
 Planned enhancements:
 
+* Allow runtime-selection of detector flags in a similar way as I added it for graphical debug output
+* Display the current detector flags
 * Fix missing parts for proper RGB detection
 * Code cleanup
     * Make better use of vector and matrix classes in OpenCV and Eigen3
